@@ -22,7 +22,7 @@ import Set;
 
 /* Count the lines of code in a project. */
 public int countLinesOfCode(projectLoc) {
-	int lineCount = 0;	
+	int lineCount = 0;
 	allFiles = getProject(|project://smallsql0.21_src|);
 
 	/* Visit all files in the directory structure;  */
@@ -44,17 +44,24 @@ public int countLinesOfCode(projectLoc) {
 
 /* Remove all comments and whitespace lines from the code. */
 public str trimCode(str S) {
-    /* Remove multi line comments - on single and multi line. */
-    trimmedComments = visit(S) {
+	/* Remove string contents as they could contain comments. */
+	trimmedQuotes = visit(S) {
+		case /\".*?\"/ => "\"\""
+	}
+    /* Remove multiline comments - on single-line. */
+    trimmedComments1 = visit(trimmedQuotes) {
  	    case /\/\*(?:.)*?\*\// => ""
- 	    case /\/\*(?:.|\n|\r|\n\r)*?\*\// => "\n"
-     }
-    /* Remove all // comments. */
-    trimmedComments2 = visit(trimmedComments) {
+    }
+    /* Remove multiline comments - on multiple lines. */
+    trimmedComments2 = visit(trimmedComments1) {
+    	case /\/\*(?:.|\n|\r|\n\r)*?\*\// => "\n" 
+    }
+    /* Remove all single-line comments. */
+    trimmedComments3 = visit(trimmedComments2) {
  	    case /\/\/.*/ => ""
     }
     /* Remove all whitespace lines. */
-    return visit(trimmedComments2) {
+    return visit(trimmedComments3) {
  	    case /\s*\n/ => "\n"
     }
 }
