@@ -4,39 +4,46 @@ import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 
 import IO;
+import String;
+import List;
+import Set;
+
+import util::Resources;
 
 //import lang::java::jdt::m3::AST;
 
 //public M3 m1 = createM3FromEclipseProject(|project://smallsql0.21_src|);
 
-public int countLinesOfCode(M3 m) {
+public int countLinesOfCode(projectLoc) {
 	
-	set[loc] mMethods = methods(m);
-	
+	allFiles = getProject(|project://smallsql0.21_src|);
+
 	int lineCount = 0;
-	//for (method <- mMethods) {
-		loc method = |java+method:///smallsql/junit/TestGroupBy/testTest()|; // 27
-		contents = readFileLines(method);
-		iprintln(method);
-		bool inComment = false;
-		for (str line <- contents) {
-			switch (line) {
-				case /^\s*$|^\s*\/\/.*$/:
-					lineCount += 0;
-				case /\/\*/:
-					inComment = true;
-				case /\*\//:
-					inComment = false;
-				case /\S/:
-					if (inComment == false) {
-						lineCount += 1;
-						println(line);	
-					}					
-				default:
-					lineCount += 0;
+	visit(allFiles) {
+		case file(f): {
+			if ( /.*\.java/ := f.file ) {
+				iprintln(f);
+				contents = readFile(f);
+				strippedContents = trimCode(contents);		
+				lineCount += size(split("\n", strippedContents)); 
 			}
 		}
-
-	//}
+	}
 	return lineCount;
+}
+
+public str trimCode(str S) {
+    /* Remove multi line comments - on single and multi line. */
+    trimmedComments = visit(S) {
+ 	    case /\/\*(?:.)*?\*\// => ""
+ 	    case /\/\*(?:.|\n|\r|\n\r)*?\*\// => "\n"
+     }
+    /* Remove all // comments. */
+    trimmedComments2 = visit(trimmedComments) {
+ 	    case /\/\/.*/ => ""
+    }
+    /* Remove all whitespace lines. */
+    return visit(trimmedComments2) {
+ 	    case /\s*\n/ => "\n"
+    }
 }
