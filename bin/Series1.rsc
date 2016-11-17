@@ -22,13 +22,49 @@ import String;
 import List;
 import Set;
 import Map;
-import ParseTree;
+
+/* Calculate SIG scores for the Eclipse M3 project model. */
+public int calculateMaintainabilityScore(eclipseModel) {
+	/* Determine all source files of the project. */
+	srcType = "java+compilationUnit";
+	srcFiles = sort({e | <e, _> <- eclipseModel@declarations, e.scheme == srcType});
+	
+	/* Calculate LOC in all files; ignore comments & whitespace lines. */
+	totalLOC = sum([countLOC(srcFile, eclipseModel) | srcFile <- srcFiles]);	
+	return totalLOC;
+}
+
+public int countLOC(location, eclipseModel) {
+	/* Remove comments and whitespace lines. */
+	strippedContents = trimCode(location, eclipseModel);
+	
+	/* Trim the contents surplus newline at start/end; return size. */
+	return size(split("\n", trim(strippedContents)));
+}
+
+/* Remove all comments and whitespace lines from the code. */
+public str trimCode(location, eclipseModel) {
+	/* Determine all comment entries for this file. Use the comment offset
+	 * sort them. By sorting we can always remove the first occurrence.
+	 */
+	commentLocs = sort([<f.offset, f> | <e, f> <- eclipseModel@documentation, f.file == location.file]);
+	
+	/* Remove all comments from the file source. */
+	fileContent = readFile(location);
+	for (<offset, commentLoc> <- commentLocs)
+		fileContent = replaceFirst(fileContent, readFile(commentLoc), "");
+	
+	/* Remove lines with whitespace only. */
+	return visit(fileContent) {
+ 	    case /\s*\n/ => "\n"
+    }
+}
 
 public list[str] findDuplicates(m1) {
 	allMethods = methods(m1);
 	
 	for (method <- allMethods) {
-		println(createDupSnippets(method));
+		println(createDupSnippets(method, m1));
 	}
 }
 
@@ -40,13 +76,13 @@ public map[str, real] complexityRisk(m1) {
 	for (method <- allMethods) {
 		complexity = cyclomaticComplexity(method, m1);
 		if (complexity <= 10)
-			riskMap["low"] += countLOC(method);
+			riskMap["low"] += countLOC(method, m1);
 		else if (complexity <= 20)
-			riskMap["moderate"] += countLOC(method);
+			riskMap["moderate"] += countLOC(method, m1);
 		else if (complexity <= 50)
-			riskMap["high"] += countLOC(method);
+			riskMap["high"] += countLOC(method, m1);
 		else if (complexity > 50)
-			riskMap["very high"] += countLOC(method);
+			riskMap["very high"] += countLOC(method, m1);
 	}
 	
 	/* Calculate totalLines, divide riskMap by totalLines. */
@@ -55,7 +91,7 @@ public map[str, real] complexityRisk(m1) {
 }
 
 public int cyclomaticComplexity(methodLocation, model) {
-	/* Start count at 1, because there is always one exection path. */
+	/* Start count at 1, because there is always one execution path. */
 	count = 1;
 
 	/* Declarations: http://bit.ly/SaL4yQ */
@@ -74,10 +110,8 @@ public int cyclomaticComplexity(methodLocation, model) {
 	return count;
 }
 
-public rel[loc, str] createDupSnippets(location) {
-	contents = readFile(location);
-	strippedContents = trimCode(contents);
-	println(strippedContents);
+public lrel[loc, str] createDupSnippets(location, eclipseModel) {
+	strippedContents = trimCode(location, eclipseModel);
 	
 	/* Split stripped content and larger than 6 lines. */
 	list[str] lines = split("\n", trim(strippedContents));
@@ -92,58 +126,4 @@ public rel[loc, str] createDupSnippets(location) {
 	
 	/* */
 	return [<location, snippet> | snippet <- snippets];
-}
-
-public int countLOC(location) {
-	contents = readFile(location);
-	strippedContents = trimCode(contents);
-	
-	return size(split("\n", trim(strippedContents)));
-}
-
-/* Count the lines of code in a project. */
-public int countLinesOfCode(projectLoc) {
-	int lineCount = 0;
-	allFiles = getProject(|project://smallsql0.21_src|);
-
-	/* Visit all files in the directory structure;  */
-	visit(allFiles) {
-		case file(f): {
-			/* Match on a '*.java' file. */
-			if (/.*\.java/ := f.file) {
-				contents = readFile(f);
-				strippedContents = trimCode(contents);
-				
-				/* Trim the contents to remove newline at start of file. */
-				lineCount += size(split("\n", trim(strippedContents)));
-				iprintln("<f> <lineCount>");
-				break;
-			}
-		}
-	}
-	return lineCount;
-}
-
-/* Remove all comments and whitespace lines from the code. */
-public str trimCode(str S) {
-	/* Remove string contents as they could contain comments. */
-	trimmedQuotes = visit(S) {
-		case /\".*?\"/ => "\"\""
-	}
-    /* Remove multiline comments - on single-line. */
-    trimmedComments1 = visit(trimmedQuotes) {
- 	    case /\/\*(?:.)*?\*\// => ""
-    }
-    /* Remove multiline comments - on multiple lines. */
-    trimmedComments2 = visit(trimmedComments1) {
-    	case /\/\*(?:.|\n|\r|\n\r)*?\*\// => "\n" 
-    }
-    /* Remove all single-line comments. */
-    trimmedComments3 = visit(trimmedComments2) {
- 	    case /\/\/.*/ => ""
-    }
-    /* Remove all whitespace lines. */
-    return visit(trimmedComments3) {
- 	    case /\s*\n/ => "\n"
-    }
 }
