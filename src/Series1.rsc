@@ -20,6 +20,7 @@ import String;
 import List;
 import Set;
 import Map;
+import Relation;
 
 /* Calculate SIG scores for the Eclipse M3 project model. */
 public int calculateMaintainabilityScore(eclipseModel) {
@@ -185,19 +186,25 @@ public int findDuplicates(M3 eclipseModel) {
 	return linesDuplicated;
 }
 
-public int unitTestCoverage(M3 eclipseModel) {
+public real unitTestCoverage(M3 eclipseModel) {
     /* Fetch all methods and method invocations for this project. */
     set[loc] modelMethods = methods(eclipseModel);
     rel[loc, loc] modelInvocations = eclipseModel@methodInvocation;
     
     /* Find project methods called from Unit Test files. */
-    set[loc] calledMethods = {to | <from, to> <- modelInvocations,
-        to in modelMethods, contains(from.path, "junit") || contains(from.path, "test")
-    };
+    rel[loc, loc] allTestMethods = {
+         <from, to> | <from, to> <- modelInvocations, to in modelMethods,
+    	 contains(from.path, "junit") || contains(from.path, "test")};
+
+    set[loc] testMethods = domain(allTestMethods);
+    set[loc] calledMethods = range(allTestMethods);
+    
 	set[loc] checkedMethods = {};
 	int oldSizeMethods = -1;
 	
-	/* Iteratively find all unique methods called by the unit tests. */
+	/* Iteratively find all unique methods called by the unit tests.
+	 * Works similar to a transative closure calculation.
+	 */
 	while (oldSizeMethods != size(calledMethods)) {
 		oldSizeMethods = size(calledMethods);
 		
@@ -208,11 +215,24 @@ public int unitTestCoverage(M3 eclipseModel) {
 			checkedMethods += method;
 			
 			calledMethods += {to | <from, to> <- modelInvocations,
-				from == method, to in modelMethods
-			};
+				              from == method, to in modelMethods};
 		}
 	}
+	/* Filter the unit test files from called methods as coverage has to
+	 * be calculated over only production code.
+	 */
+	calledMethods -= testMethods;
 	
     /* Determine the cumulative linecount for all called methods. */
-    return sum([countLOC(method, eclipseModel) | method <- calledMethods]);
+    int coverage = sum([countLOC(method, eclipseModel) | method <- calledMethods]);
+	println("Unit test lines coverage: <coverage>");
+	
+	/* Determine code size of all non-testing methods */
+	int productionSize = sum([countLOC(method, eclipseModel) | method <- (modelMethods - testMethods)]); 
+	println("Number of production lines of code: <productionSize>");
+	
+	real percentageCovered = (coverage / (productionSize * 1.0)) * 100.0;
+	println("Percentage covered files: <percentageCovered>");
+	
+	return percentageCovered;
 }
