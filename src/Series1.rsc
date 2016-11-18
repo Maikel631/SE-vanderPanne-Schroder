@@ -186,37 +186,33 @@ public int findDuplicates(M3 eclipseModel) {
 }
 
 public int unitTestCoverage(M3 eclipseModel) {
-	
-	set[loc] projectMethods = methods(eclipseModel);
-	/* Determine all project methods which are called via the unit tests. */
-	set[loc] calledMethods = {to | <from, to> <- eclipseModel@methodInvocation,
-	                          contains(from.path, "test") || contains(from.path, "junit"),
-	                          to in projectMethods};
-		
-	int newSizeCalledMethods = size(calledMethods);
+    /* Fetch all methods and method invocations for this project. */
+    set[loc] modelMethods = methods(eclipseModel);
+    rel[loc, loc] modelInvocations = eclipseModel@methodInvocation;
+    
+    /* Find project methods called from Unit Test files. */
+    set[loc] calledMethods = {to | <from, to> <- modelInvocations,
+        to in modelMethods, contains(from.path, "junit") || contains(from.path, "test")
+    };
+	set[loc] checkedMethods = {};
 	int oldSizeMethods = -1;
 	
-	set[loc] checkedMethods = {};
-	
-	/* Obtain all methods called by the methods which in turn are
-	 * called in the unit tests. This will return the coverage of all
-	 * method calls. 
-	 */
-	while( newSizeCalledMethods != oldSizeMethods) {
+	/* Iteratively find all unique methods called by the unit tests. */
+	while (oldSizeMethods != size(calledMethods)) {
 		oldSizeMethods = size(calledMethods);
+		
+		/* Find new methods called by the current methods. */
 		for (method <- calledMethods) {
 			if (method in checkedMethods)
 				continue;
-			
 			checkedMethods += method;
-			calledMethods += {to | <from, to> <- eclipseModel@methodInvocation,
-			                  from == method, to in projectMethods};
+			
+			calledMethods += {to | <from, to> <- modelInvocations,
+				from == method, to in modelMethods
+			};
 		}
-		newSizeCalledMethods = size(calledMethods);
 	}
-	println("calledMethods - <size(calledMethods)>");
 	
-	/* Determine all lines of code covered by the unit tests. */
-	int coverage = sum([countLOC(method, eclipseModel) | method <- calledMethods]);
-	return coverage;
+    /* Determine the cumulative linecount for all called methods. */
+    return sum([countLOC(method, eclipseModel) | method <- calledMethods]);
 }
