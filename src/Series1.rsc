@@ -75,26 +75,55 @@ public str trimCode(location, eclipseModel) {
     }
 }
 
-public map[str, real] complexityRisk(M3 eclipseModel) {
+public int complexityRisk(M3 eclipseModel) {
 	set[loc] allMethods = methods(eclipseModel);
-	map[str, int] riskMap = ("low": 0.0, "moderate": 0.0, "high": 0.0, "very high": 0.0);
+	map[str, real] riskMap = ("low": 0.0, "moderate": 0.0, "high": 0.0, "very high": 0.0);
 	
 	/* Calculate complexity and LOC for each method. */
 	for (method <- allMethods) {
 		int complexity = cyclomaticComplexity(method, eclipseModel);
 		if (complexity <= 10)
-			riskMap["low"] += countLOC(method, m1);
+			riskMap["low"] += countLOC(method, eclipseModel);
 		else if (complexity <= 20)
-			riskMap["moderate"] += countLOC(method, m1);
+			riskMap["moderate"] += countLOC(method, eclipseModel);
 		else if (complexity <= 50)
-			riskMap["high"] += countLOC(method, m1);
+			riskMap["high"] += countLOC(method, eclipseModel);
 		else if (complexity > 50)
-			riskMap["very high"] += countLOC(method, m1);
+			riskMap["very high"] += countLOC(method, eclipseModel);
 	}
 	
 	/* Calculate totalLines, divide riskMap by totalLines. */
 	real totalLines = sum([riskMap[index] | index <- riskMap]);
-	return (index : riskMap[index] / totalLines | index <- riskMap);	
+	riskMap = (index : riskMap[index] / totalLines | index <- riskMap);
+	
+	println("Riskmap percentages: <riskMap>");
+	real high = riskMap["high"];
+	real veryHigh = riskMap["very high"];
+	real moderate = riskMap["moderate"];
+	
+	//list[real] moderateScores = [0.25, 0.30, 0.40, 0.50];
+	//list[real] highScores     = [0.00, 0.05, 0.10, 0.15];
+	//list[real] veryHighScores = [0.00, 0.00, 0.00, 0.05];
+	//
+	//int rank = 5;
+	//for (i <- [0..4]) {
+	//	if (moderate <= moderateScores[i] && high <= highScores[i] &&
+	//	    veryHighScores <= veryHighScores[i]) {
+	//		break;
+	//	}
+	//	rank -= 1; 
+	//}
+	
+	if (moderate < 0.25 && high == 0 && veryHigh == 0)
+		return 5;
+	else if (moderate < 0.30 && high < 0.05 && veryHigh == 0)
+		return 4;
+	else if (moderate < 0.40 && high < 0.10 && veryHigh == 0)
+		return 3;
+	else if (moderate < 0.50 && high < 0.15 && veryHigh < 0.05)
+		return 2;
+	else
+		return 1;
 }
 
 public int cyclomaticComplexity(methodLocation, model) {
@@ -248,14 +277,12 @@ public int unitTestCoverage(M3 eclipseModel) {
 	println("Percentage covered files: <percentageCovered>%");
 	
 	/* Return the score 1 - 5. */
-	if (percentageCovered <= 20.0)
-		return 1;
-	else if (percentageCovered <= 60.0)
-		return 2;
-	else if (percentageCovered <= 80.0)
-		return 3;
-	else if (percentageCovered <= 95.0)
-		return 4;
-	else // (percentageCovered <= 100.0)
-		return 5;
+	list[real] rankPercentages = [20.0, 60.0, 80.0, 95.0, 100.0]; 
+	int curRank = 1;
+	for (rank <- rankPercentages) {
+		if (percentageCovered <= rank)
+			return curRank;
+		curRank += 1;
+	}
+	return -1;
 }
