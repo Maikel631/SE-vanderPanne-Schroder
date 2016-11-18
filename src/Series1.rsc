@@ -30,16 +30,15 @@ public int calculateMaintainabilityScore(eclipseModel) {
 	srcFiles = sort({e | <e, _> <- eclipseModel@declarations, e.scheme == srcType});
 	
 	/* Calculate LOC in all files; ignore comments & whitespace lines. */
-	totalLOC = sum([countLOC(srcFile, eclipseModel) | srcFile <- srcFiles]);	
-	return totalLOC;
+	return totalLOC = sum([countLOC(srcFile, eclipseModel) | srcFile <- srcFiles]);
 }
 
 public int countLOC(location, eclipseModel) {
-	/* Remove comments and whitespace lines. */
+	/* Remove comments from the source file. */
 	strippedContents = trimCode(location, eclipseModel);
-	
-	/* Trim the contents surplus newline at start/end; return size. */
-	return size(split("\n", trim(strippedContents)));
+
+	/* Remove whitespace lines and return the line count. */
+	return sum([1 | line <- split("\n", strippedContents), !(/^\s*$/ := line)]);
 }
 
 /* Remove all comments and whitespace lines from the code. */
@@ -53,19 +52,7 @@ public str trimCode(location, eclipseModel) {
 	fileContent = readFile(location);
 	for (<offset, commentLoc> <- commentLocs)
 		fileContent = replaceFirst(fileContent, readFile(commentLoc), "");
-	
-	/* Remove lines with whitespace only. */
-	return visit(fileContent) {
- 	    case /\s*\n/ => "\n"
-    }
-}
-
-public list[str] findDuplicates(m1) {
-	allMethods = methods(m1);
-	
-	for (method <- allMethods) {
-		println(createDupSnippets(method, m1));
-	}
+    return fileContent;
 }
 
 public map[str, real] complexityRisk(m1) {
@@ -108,22 +95,4 @@ public int cyclomaticComplexity(methodLocation, model) {
 		case \while(_, _): count += 1;
 	}
 	return count;
-}
-
-public lrel[loc, str] createDupSnippets(location, eclipseModel) {
-	strippedContents = trimCode(location, eclipseModel);
-	
-	/* Split stripped content and larger than 6 lines. */
-	list[str] lines = split("\n", trim(strippedContents));
-	if (size(lines) < 6)
-		return [];
-	
-	/* Trim lines to get rid of whitespace. */
-	trimmedLines = [trim(line) | line <- lines];
-	snippets = for (i <- [0..size(trimmedLines) - 6 + 1]) {
-		append intercalate("", trimmedLines[i..i+6]);
-	}
-	
-	/* */
-	return [<location, snippet> | snippet <- snippets];
 }
