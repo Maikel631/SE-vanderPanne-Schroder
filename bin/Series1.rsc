@@ -33,16 +33,18 @@ public int calculateMaintainabilityScore(eclipseModel) {
 	real kloc = totalLOC / 1000.0;
 
 	int manYearScore = 0;
-	if (kloc <= 66)
-		manYearScore = 2;
-	else if (kloc <= 246)
-		manYearScore = 1;
-	else if (kloc <= 665)
-		manYearScore = 0;
-	else if (kloc <= 1310)
+	if (kloc < 0)
 		manYearScore = -1;
+	else if (kloc <= 66) 
+		manYearScore = 5;
+	else if (kloc <= 246)
+		manYearScore = 4;
+	else if (kloc <= 665)
+		manYearScore = 3;
+	else if (kloc <= 1310)
+		manYearScore = 2;
 	else
-		manYearScore = -2;
+		manYearScore = 1;
 	println("Total lines of code: <totalLOC> - Man year score: <manYearScore>");
 	return manYearScore;
 }
@@ -184,8 +186,38 @@ public int findDuplicates(M3 eclipseModel) {
 	return linesDuplicated;
 }
 
-//public void unitTestCoverage(M3 eclipseModel) {
-//	srcType = "java+method";
-//	srcFiles = sort({e | <e, _> <- eclipseModel@declarations, e.scheme == srcType, e.file});
-//
-//}
+public int unitTestCoverage(M3 eclipseModel) {
+	
+	set[loc] projectMethods = methods(eclipseModel);
+	/* Determine all project methods which are called via the unit tests. */
+	set[loc] calledMethods = {to | <from, to> <- eclipseModel@methodInvocation,
+	                          contains(from.path, "test") || contains(from.path, "junit"),
+	                          to in projectMethods};
+		
+	int newSizeCalledMethods = size(calledMethods);
+	int oldSizeMethods = -1;
+	
+	set[loc] checkedMethods = {};
+	
+	/* Obtain all methods called by the methods which in turn are
+	 * called in the unit tests. This will return the coverage of all
+	 * method calls. 
+	 */
+	while( newSizeCalledMethods != oldSizeMethods) {
+		oldSizeMethods = size(calledMethods);
+		for (method <- calledMethods) {
+			if (method in checkedMethods)
+				continue;
+			
+			checkedMethods += method;
+			calledMethods += {to | <from, to> <- eclipseModel@methodInvocation,
+			                  from == method, to in projectMethods};
+		}
+		newSizeCalledMethods = size(calledMethods);
+	}
+	println("calledMethods - <size(calledMethods)>");
+	
+	/* Determine all lines of code covered by the unit tests. */
+	int coverage = sum([countLOC(method, eclipseModel) | method <- calledMethods]);
+	return coverage;
+}
