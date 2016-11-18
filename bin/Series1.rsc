@@ -15,7 +15,6 @@ import lang::java::m3::AST;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 import lang::java::\syntax::Java15;
-import util::Resources;
 
 import IO;
 import String;
@@ -30,7 +29,22 @@ public int calculateMaintainabilityScore(eclipseModel) {
 	srcFiles = sort({e | <e, _> <- eclipseModel@declarations, e.scheme == srcType});
 	
 	/* Calculate LOC in all files; ignore comments & whitespace lines. */
-	return totalLOC = sum([countLOC(srcFile, eclipseModel) | srcFile <- srcFiles]);
+	int totalLOC = sum([countLOC(srcFile, eclipseModel) | srcFile <- srcFiles]);
+	real kloc = totalLOC / 1000.0;
+
+	int manYearScore = 0;
+	if (kloc <= 66)
+		manYearScore = 2;
+	else if (kloc <= 246)
+		manYearScore = 1;
+	else if (kloc <= 665)
+		manYearScore = 0;
+	else if (kloc <= 1310)
+		manYearScore = -1;
+	else
+		manYearScore = -2;
+	println("Total lines of code: <totalLOC> - Man year score: <manYearScore>");
+	return manYearScore;
 }
 
 public int countLOC(location, eclipseModel) {
@@ -38,7 +52,7 @@ public int countLOC(location, eclipseModel) {
 	strippedContents = trimCode(location, eclipseModel);
 
 	/* Remove whitespace lines and return the line count. */
-	return sum([1 | line <- split("\n", strippedContents), !(/^\s*$/ := line)]);
+	return size(split("\n", strippedContents));
 }
 
 /* Remove all comments and whitespace lines from the code. */
@@ -52,16 +66,20 @@ public str trimCode(location, eclipseModel) {
 	fileContent = readFile(location);
 	for (<offset, commentLoc> <- commentLocs)
 		fileContent = replaceFirst(fileContent, readFile(commentLoc), "");
-    return fileContent;
+    
+    /* Remove all whitespace lines. */
+    return visit(trim(fileContent)) {
+ 	    case /\s*\n/ => "\n"
+    }
 }
 
-public map[str, real] complexityRisk(m1) {
-	allMethods = methods(m1);
-	riskMap = ("low": 0.0, "moderate": 0.0, "high": 0.0, "very high": 0.0);
+public map[str, real] complexityRisk(M3 eclipseModel) {
+	set[loc] allMethods = methods(eclipseModel);
+	map[str, int] riskMap = ("low": 0.0, "moderate": 0.0, "high": 0.0, "very high": 0.0);
 	
 	/* Calculate complexity and LOC for each method. */
 	for (method <- allMethods) {
-		complexity = cyclomaticComplexity(method, m1);
+		int complexity = cyclomaticComplexity(method, eclipseModel);
 		if (complexity <= 10)
 			riskMap["low"] += countLOC(method, m1);
 		else if (complexity <= 20)
@@ -79,10 +97,10 @@ public map[str, real] complexityRisk(m1) {
 
 public int cyclomaticComplexity(methodLocation, model) {
 	/* Start count at 1, because there is always one execution path. */
-	count = 1;
+	int count = 1;
 
 	/* Declarations: http://bit.ly/SaL4yQ */
-	methodAST = getMethodASTEclipse(methodLocation, model=model);
+	Declaration methodAST = getMethodASTEclipse(methodLocation, model=model);
 	visit (methodAST) {
 		case \case(_): count += 1;
 		case \catch(_, _): count += 1;
@@ -96,3 +114,78 @@ public int cyclomaticComplexity(methodLocation, model) {
 	}
 	return count;
 }
+
+
+public list[str] createDupSnippets(loc location, int frameSize, M3 eclipseModel) {
+	str strippedContents = trimCode(location, eclipseModel);
+	
+	/* Split stripped content and larger than frameSize lines. */
+	list[str] lines = split("\n", trim(strippedContents));
+	if (size(lines) < frameSize)
+		return [];
+	
+	/* Trim lines to get rid of whitespace. */
+	trimmedLines = [trim(line) | line <- lines];
+	return for (i <- [0..size(trimmedLines) - frameSize + 1]) {
+		append intercalate("", trimmedLines[i..i+frameSize]);
+	}
+}
+
+public int findDuplicates(M3 eclipseModel) {
+	str srcType = "java+compilationUnit";
+	set[loc] srcFiles = {e | <e, _> <- eclipseModel@declarations, e.scheme == srcType};
+	
+	int linesDuplicated = 0;
+	map[str, bool] snippetList = ();
+	
+	int frameSize = 6;
+	for (srcFile <- srcFiles) {
+		/* Split method in snippets, if method is smaller than 6 lines: skip it. */
+		list[str] snippets = createDupSnippets(srcFile, frameSize, eclipseModel);
+		if (isEmpty(snippets))
+			continue;
+
+		int dupLinesCount = 0;
+		bool dupFound = false;
+		for (snippet <- snippets) {
+			/* Check if snippet is already added to the snippet list,
+			 * if it is, a duplicate is found. If upfollowing snippets
+			 * also are in this list, a duplication of a larger area is found.
+			 */
+			if (snippet in snippetList) {
+				if (dupFound == false) {
+					dupFound = true;
+					/* When this snippet is not found as duplicate yet;
+					 * frameSize * 2 lines has to be added to count all duplicated
+					 * lines. Else add frameSize once. 
+					 */
+					dupLinesCount = (snippetList[snippet]) ? frameSize : frameSize * 2;
+				}
+				/* Next duplicate matches --> so add a single line count
+				 * or double line count when not found earlier. 
+				 */
+				else
+					dupLinesCount += (snippetList[snippet]) ? 1 : 2;
+				snippetList[snippet] = true;
+			}
+			else {
+				/* Unknown snippet, check for later instances if it can match. */
+				snippetList[snippet] = false;
+				if (dupFound) {
+					linesDuplicated += dupLinesCount;
+					dupFound = false;
+				}
+			}
+			
+		}
+		if (dupFound)
+			linesDuplicated += dupLinesCount;
+	}
+	return linesDuplicated;
+}
+
+//public void unitTestCoverage(M3 eclipseModel) {
+//	srcType = "java+method";
+//	srcFiles = sort({e | <e, _> <- eclipseModel@declarations, e.scheme == srcType, e.file});
+//
+//}
