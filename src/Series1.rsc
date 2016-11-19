@@ -26,28 +26,12 @@ import codeProperties::unitSize;
 import codeProperties::unitTesting;
 
 /* Calculate SIG scores for the Eclipse M3 project model. */
-public int calculateMaintainabilityScore(eclipseModel) {
-	/* Determine all source files of the project. */
-	srcType = "java+compilationUnit";
-	srcFiles = sort({e | <e, _> <- eclipseModel@declarations, e.scheme == srcType});
+public int calculateSIGScore(eclipseModel) {	
+	/* Calculate score for each source code property. */
+	volume = getVolumeScore(eclipseModel);
 	
-	/* Calculate LOC in all files; ignore comments & whitespace lines. */
-	int totalLOC = sum([countLOC(srcFile, eclipseModel) | srcFile <- srcFiles]);
-	real kloc = totalLOC / 1000.0;
-
-	int manYearScore = 0;
-	if (kloc < 0)
-		manYearScore = -1;
-	else if (kloc <= 66) 
-		manYearScore = 5;
-	else if (kloc <= 246)
-		manYearScore = 4;
-	else if (kloc <= 665)
-		manYearScore = 3;
-	else if (kloc <= 1310)
-		manYearScore = 2;
-	else
-		manYearScore = 1;
-	println("Total lines of code: <totalLOC> - Man year score: <manYearScore>");
-	return manYearScore;
+	/* Determine the ISO 9126 maintainability subscores. */
+	
+	/* Determine the overall maintainability score. */
+	return 0;
 }
