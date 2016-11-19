@@ -21,13 +21,33 @@ import List;
 import lang::java::m3::AST;
 import lang::java::jdt::m3::Core;
 
+import riskProfile;
 import codeProperties::volume;
 
-public int complexityRisk(M3 eclipseModel) {
-	set[loc] allMethods = methods(eclipseModel);
-	map[str, real] riskMap = ("low": 0.0, "moderate": 0.0, "high": 0.0, "very high": 0.0);
+public int getComplexityScore(M3 eclipseModel) {
+	/* Calculate the risk profile, convert it to a rating. */
+	map[str, real] riskMap = complexityRiskMap(eclipseModel);
+	int rating = complexityRating(riskMap);
 	
-	/* Calculate complexity and LOC for each method. */
+	/* Output the calculated values, return rating. */
+	println("=== Unit complexity ===");
+	println("Risk profile:");
+	println("Low:\t\t<riskMap["low"] * 100>%");
+	println("Moderate:\t<riskMap["moderate"] * 100>%");
+	println("High:\t\t<riskMap["high"] * 100>%");
+	println("Very high:\t<riskMap["very high"] * 100>%");
+	println("\nUnit Complexity rating: <rating>\n");
+	
+	return rating;
+}
+
+public map[str, real] complexityRiskMap(M3 eclipseModel) {
+	set[loc] allMethods = methods(eclipseModel);
+	map[str, real] riskMap = (
+		"low": 0.0, "moderate": 0.0, "high": 0.0, "very high": 0.0
+	);
+	
+	/* Iterate over all methods, add its LOC to correct category. */
 	for (method <- allMethods) {
 		int complexity = cyclomaticComplexity(method, eclipseModel);
 		if (complexity <= 10)
@@ -40,28 +60,19 @@ public int complexityRisk(M3 eclipseModel) {
 			riskMap["very high"] += countLOC(method, eclipseModel);
 	}
 	
-	/* Calculate totalLines, divide riskMap by totalLines. */
+	/* Convert absolute LOC in each category to percentages. */
 	real totalLines = sum([riskMap[index] | index <- riskMap]);
 	riskMap = (index : riskMap[index] / totalLines | index <- riskMap);
 	
-	println("Riskmap percentages: <riskMap>");
+	return riskMap;
+}
+
+public int complexityRating(map[str, real] riskMap) {
 	real high = riskMap["high"];
 	real veryHigh = riskMap["very high"];
 	real moderate = riskMap["moderate"];
 	
-	//list[real] moderateScores = [0.25, 0.30, 0.40, 0.50];
-	//list[real] highScores     = [0.00, 0.05, 0.10, 0.15];
-	//list[real] veryHighScores = [0.00, 0.00, 0.00, 0.05];
-	//
-	//int rank = 5;
-	//for (i <- [0..4]) {
-	//	if (moderate <= moderateScores[i] && high <= highScores[i] &&
-	//	    veryHighScores <= veryHighScores[i]) {
-	//		break;
-	//	}
-	//	rank -= 1; 
-	//}
-	
+	/* Based on the amount of code in each category, assign the rating. */
 	if (moderate < 0.25 && high == 0 && veryHigh == 0)
 		return 5;
 	else if (moderate < 0.30 && high < 0.05 && veryHigh == 0)
