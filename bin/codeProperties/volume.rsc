@@ -19,12 +19,8 @@ import String;
 import lang::java::jdt::m3::Core;
 
 public int getVolumeScore(M3 eclipseModel) {
-	/* Determine all source files of the project. */
-	str srcType = "java+compilationUnit";
-	set[loc] srcFiles = {e | <e, _> <- eclipseModel@declarations, e.scheme == srcType};
-
 	/* Calculate LOC in all files, from which the rating is calculated. */
-	int totalLOC = sum([countLOC(srcFile, eclipseModel) | srcFile <- srcFiles]);
+	int totalLOC = getVolume(eclipseModel);
 	int rating = volumeRating(totalLOC);
 	
 	println("=== Volume ===");
@@ -47,6 +43,14 @@ public int volumeRating(int totalLOC) {
 			rating -= 1;
 	}
 	return rating;
+}
+
+public int getVolume(eclipseModel) {
+	/* Determine all source files of the project. */
+	str srcType = "java+compilationUnit";
+	set[loc] srcFiles = {e | <e, _> <- eclipseModel@declarations, e.scheme == srcType};
+	
+	return sum([countLOC(srcFile, eclipseModel) | srcFile <- srcFiles]);
 }
 
 public int countLOC(location, eclipseModel) {

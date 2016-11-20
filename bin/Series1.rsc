@@ -30,6 +30,7 @@ public int calculateSIGScore(eclipseModel) {
 	/* Calculate score for each source code property. */
 	volume = getVolumeScore(eclipseModel);
 	unitComplexity = getComplexityScore(eclipseModel);
+	duplication = getDuplicationScore(eclipseModel);
 	
 	/* Determine the ISO 9126 maintainability subscores. */
 	
