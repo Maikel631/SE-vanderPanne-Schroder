@@ -31,6 +31,7 @@ public int calculateSIGScore(eclipseModel) {
 	volume = getVolumeScore(eclipseModel);
 	unitComplexity = getComplexityScore(eclipseModel);
 	duplication = getDuplicationScore(eclipseModel);
+	testCoverage = getTestCoverageScore(eclipseModel);
 	
 	/* Determine the ISO 9126 maintainability subscores. */
 	

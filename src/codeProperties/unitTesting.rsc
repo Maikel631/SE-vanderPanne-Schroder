@@ -22,7 +22,42 @@ import Relation;
 import lang::java::m3::Core;
 import codeProperties::volume;
 
-public int unitTestCoverage(M3 eclipseModel) {
+
+public int getTestCoverageScore(M3 eclipseModel) {
+	/* Calculate from the percentage covered the rating. */
+	map[str, num] testCoverage = unitTestCoverage(eclipseModel);
+	num coverage = testCoverage["coverage"];
+	num productionSize = testCoverage["productionSize"];
+	num percentageCovered = testCoverage["percentageCovered"];
+	
+	int rating = testCoverageRating(percentageCovered);
+	
+	/* Output the calculated values, return rating. */
+	println("=== Unit Test Coverage ===");
+	println("Number of production lines of code:    <productionSize>");
+	println("Unit test lines coverage:              <coverage>");
+	println("Percentage covered of producion files: <percentageCovered>%\n");
+	println("Unit test coverage rating: <rating>\n");
+	
+	return rating;
+}
+
+public int testCoverageRating(real percentageCovered) {
+	/* Return the score 1 - 5 and -1 if percentage is invalid.
+	 * Score is based on the percentage of production code covered by
+	 * the unit tests.
+	 */
+	list[real] rankPercentages = [20.0, 60.0, 80.0, 95.0, 100.0]; 
+	int curRank = 1;
+	for (rank <- rankPercentages) {
+		if (percentageCovered <= rank)
+			return curRank;
+		curRank += 1;
+	}
+	return -1;
+}
+
+public map[str, num] unitTestCoverage(M3 eclipseModel) {
     /* Fetch all methods and method invocations for this project. */
     set[loc] modelMethods = methods(eclipseModel);
     rel[loc, loc] modelInvocations = eclipseModel@methodInvocation;
@@ -47,24 +82,12 @@ public int unitTestCoverage(M3 eclipseModel) {
 	
     /* Determine the cumulative linecount for all called methods. */
     int coverage = sum([countLOC(method, eclipseModel) | method <- calledMethods]);
-	println("Unit test lines coverage: <coverage>");
 	
-	/* Determine code size of all non-testing methods */
+	/* Determine code size of all non-testing methods and calculate covered percentage. */
 	int productionSize = sum([countLOC(method, eclipseModel) | method <- (modelMethods - testMethods)]); 
-	println("Number of production lines of code: <productionSize>");
-	
 	real percentageCovered = (coverage / (productionSize * 1.0)) * 100.0;
-	println("Percentage covered files: <percentageCovered>%");
-	
-	/* Return the score 1 - 5. */
-	list[real] rankPercentages = [20.0, 60.0, 80.0, 95.0, 100.0]; 
-	int curRank = 1;
-	for (rank <- rankPercentages) {
-		if (percentageCovered <= rank)
-			return curRank;
-		curRank += 1;
-	}
-	return -1;
+
+	return ("coverage": coverage, "productionSize": productionSize, "percentageCovered": percentageCovered);
 }
 
 /* Helper function to get a set of all called methods using all methods
