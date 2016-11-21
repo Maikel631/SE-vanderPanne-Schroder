@@ -15,6 +15,10 @@ import IO;
 import Set;
 import List;
 
+import util::Math;
+
+import analysis::statistics::Descriptive;
+
 import lang::java::m3::AST;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
@@ -26,16 +30,30 @@ import codeProperties::unitSize;
 import codeProperties::unitTesting;
 
 /* Calculate SIG scores for the Eclipse M3 project model. */
-public int calculateSIGScore(eclipseModel) {	
+public real calculateSIGScore(M3 eclipseModel) {	
 	/* Calculate score for each source code property. */
-	volume = getVolumeScore(eclipseModel);
-	unitComplexity = getComplexityScore(eclipseModel);
-	duplication = getDuplicationScore(eclipseModel);
-	testCoverage = getTestCoverageScore(eclipseModel);
-	unitSize = getUnitSizeScore(eclipseModel);
+	int volume = getVolumeScore(eclipseModel);
+	int unitComplexity = getComplexityScore(eclipseModel);
+	int duplication = getDuplicationScore(eclipseModel);
+	int testCoverage = getTestCoverageScore(eclipseModel);
+	int unitSize = getUnitSizeScore(eclipseModel);
 	
 	/* Determine the ISO 9126 maintainability subscores. */
+	real analysability = mean([volume, duplication, unitSize, testCoverage]);
+	real changeability = mean([unitComplexity, duplication]);
+	real stability = toReal(testCoverage);
+	real testability = mean([unitComplexity, unitSize, testCoverage]);
+	
+	println("=== ISO 9126 Maintability subscores ===");
+	println("Analysability:  <round(analysability, 0.001)>");
+	println("Changability:   <round(changeability, 0.001)>");
+	println("Stability:      <round(stability,     0.001)>");
+	println("Testability:    <round(testability,   0.001)>");
 	
 	/* Determine the overall maintainability score. */
-	return 0;
+	real overallScore = mean([analysability, changeability, stability, testability]);
+	println("\n=== Overall Maintability score ===");
+	println("Overall score:  <round(overallScore, 0.001)>\n");
+	
+	return overallScore;
 }
