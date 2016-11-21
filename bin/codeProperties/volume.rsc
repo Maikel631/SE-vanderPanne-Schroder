@@ -46,10 +46,7 @@ public int volumeRating(int totalLOC) {
 }
 
 public int getVolume(eclipseModel) {
-	/* Determine all source files of the project. */
-	str srcType = "java+compilationUnit";
-	set[loc] srcFiles = {e | <e, _> <- eclipseModel@declarations, e.scheme == srcType};
-	
+	set[loc] srcFiles = files(eclipseModel);
 	return sum([countLOC(srcFile, eclipseModel) | srcFile <- srcFiles]);
 }
 

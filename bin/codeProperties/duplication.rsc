@@ -54,8 +54,7 @@ public int duplicationRating(real duplicatedPerc) {
 
 public int findDuplicates(M3 eclipseModel) {
 	/* Determine all source files in the project. */
-	str srcType = "java+compilationUnit";
-	set[loc] srcFiles = {e | <e, _> <- eclipseModel@declarations, e.scheme == srcType};
+	set[loc] srcFiles = files(eclipseModel);
 	
 	int frameSize = 6;
 	int linesDuplicated = 0;
