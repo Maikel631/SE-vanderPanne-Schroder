@@ -17,15 +17,19 @@ module codeProperties::unitComplexity
 
 import IO;
 import List;
+import ParseTree;
 
 import lang::java::m3::AST;
+import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
+import lang::java::jdt::m3::AST;
+import lang::java::\syntax::Java15;
 
 import codeProperties::volume;
 
 public int getComplexityScore(M3 eclipseModel) {
 	/* Calculate the risk profile, convert it to a rating. */
-	map[str, real] riskMap = complexityRiskMap(eclipseModel);
+	map[str, num] riskMap = complexityRiskMap(eclipseModel);
 	int rating = complexityRating(riskMap);
 	
 	/* Output the calculated values, return rating. */
@@ -40,29 +44,51 @@ public int getComplexityScore(M3 eclipseModel) {
 	return rating;
 }
 
-public map[str, real] complexityRiskMap(M3 eclipseModel) {
+public map[str, num] complexityRiskMap(M3 eclipseModel) {
 	set[loc] allMethods = methods(eclipseModel);
-	map[str, real] riskMap = (
+	map[str, num] riskMap = (
 		"low": 0.0, "moderate": 0.0, "high": 0.0, "very high": 0.0
 	);
 	
-	/* Iterate over all methods, add its LOC to correct category. */
-	for (method <- allMethods) {
-		int complexity = cyclomaticComplexity(method, eclipseModel);
-		if (complexity <= 10)
-			riskMap["low"] += countLOC(method, eclipseModel);
-		else if (complexity <= 20)
-			riskMap["moderate"] += countLOC(method, eclipseModel);
-		else if (complexity <= 50)
-			riskMap["high"] += countLOC(method, eclipseModel);
-		else if (complexity > 50)
-			riskMap["very high"] += countLOC(method, eclipseModel);
+	set[Declaration] compilationUnitAsts = createAstsFromEclipseProject(eclipseModel.id, false);
+	/* ASTs only consists of compilationUnits - */
+	countMethod1 = countMethod2 = countMethod3 = 0;
+	for (compilationUnit <- compilationUnitAsts) {
+		visit(compilationUnit) {
+			//case \method(_, _, _, _): {countMethod1 += 1; } Empty methods?
+			case \method(_, _, _, _, Statement implementation): {
+				riskMap = addToRiskMap(riskMap, implementation, eclipseModel);
+				countMethod2 += 1;
+			}
+			case \constructor(_, _, _, Statement implementation): {
+				riskMap = addToRiskMap(riskMap, implementation, eclipseModel);
+				countMethod3 += 1;
+			}
+		}
 	}
+	//println("<countMethod1> - <countMethod2> - <countMethod3>");
 	
 	/* Convert absolute LOC in each category to percentages. */
 	real totalLines = sum([riskMap[index] | index <- riskMap]);
-	riskMap = (index : riskMap[index] / totalLines | index <- riskMap);
+	if (totalLines != 0)
+		riskMap = (index : riskMap[index] / totalLines | index <- riskMap);
 	
+	return riskMap;
+}
+
+public map[str, num] addToRiskMap(map[str, num] riskMap, Statement methodAst, M3 eclipseModel) {
+	/* For each methodAST, add its LOC to the correct category. */
+	int complexity = cyclomaticComplexity(methodAst);
+	/* Use the src to get only the method's code lines. */
+	int linesOfCode =  countLOC(methodAst@src, eclipseModel);
+	if (complexity <= 10)
+		riskMap["low"] +=  linesOfCode;
+	else if (complexity <= 20)
+		riskMap["moderate"] += linesOfCode;
+	else if (complexity <= 50)
+		riskMap["high"] += linesOfCode;
+	else if (complexity > 50)
+		riskMap["very high"] += linesOfCode;
 	return riskMap;
 }
 
@@ -84,13 +110,12 @@ public int complexityRating(map[str, real] riskMap) {
 		return 1;
 }
 
-public int cyclomaticComplexity(methodLocation, model) {
+public int cyclomaticComplexity(ast) {
 	/* Start count at 1, because there is always one execution path. */
 	int count = 1;
 
 	/* Declarations: http://bit.ly/SaL4yQ */
-	Declaration methodAST = getMethodASTEclipse(methodLocation, model=model);
-	visit (methodAST) {
+	visit (ast) {
 		case \case(_): count += 1;
 		case \catch(_, _): count += 1;
 		case \do(_, _): count += 1;
