@@ -82,11 +82,13 @@ public map[str, num] unitTestCoverage(M3 eclipseModel) {
 	calledMethods -= testMethods;
 	
     /* Determine the cumulative linecount for all called methods. */
-    int coverage = sum([countLOC(method, eclipseModel) | method <- calledMethods]);
+    int coverage = 0;
+    if (!isEmpty(calledMethods))
+    	coverage = sum([countLOC(method, eclipseModel) | method <- calledMethods]);
 	
 	/* Determine code size of all non-testing methods and calculate covered percentage. */
 	int productionSize = sum([countLOC(method, eclipseModel) | method <- (modelMethods - testMethods)]); 
-	real percentageCovered = (coverage / (productionSize * 1.0)) * 100.0;
+	real percentageCovered = (coverage / toReal(productionSize)) * 100.0;
 
 	return ("coverage": coverage, "productionSize": productionSize, "percentageCovered": percentageCovered);
 }
