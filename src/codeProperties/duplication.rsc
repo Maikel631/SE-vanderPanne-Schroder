@@ -34,7 +34,7 @@ public int getDuplicationScore(M3 eclipseModel) {
 	/* Output the LOC and rating, return the rating. */
 	println("=== Duplication ===");
 	println("Number of duplicated lines: <duplicatedLOC>");
-	println("Duplicated lines percentage: <duplicatedPerc>%");
+	println("Duplicated lines percentage: <round(duplicatedPerc, 0.001)>%");
 	println("\nDuplication rating: <rating>\n");
 	
 	return rating;

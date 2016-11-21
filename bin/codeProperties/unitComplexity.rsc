@@ -18,6 +18,7 @@ module codeProperties::unitComplexity
 import IO;
 import List;
 import ParseTree;
+import util::Math;
 
 import lang::java::m3::AST;
 import lang::java::m3::Core;
@@ -35,10 +36,10 @@ public int getComplexityScore(M3 eclipseModel) {
 	/* Output the calculated values, return rating. */
 	println("=== Unit complexity ===");
 	println("Risk profile:");
-	println("Low:\t\t<riskMap["low"] * 100>%");
-	println("Moderate:\t<riskMap["moderate"] * 100>%");
-	println("High:\t\t<riskMap["high"] * 100>%");
-	println("Very high:\t<riskMap["very high"] * 100>%");
+	println("Low:\t\t<round(riskMap["low"] * 100, 0.001)>%");
+	println("Moderate:\t<round(riskMap["moderate"] * 100, 0.001)>%");
+	println("High:\t\t<round(riskMap["high"] * 100, 0.001)>%");
+	println("Very high:\t<round(riskMap["very high"] * 100, 0.001)>%");
 	println("\nUnit Complexity rating: <rating>\n");
 	
 	return rating;
@@ -55,7 +56,7 @@ public map[str, num] complexityRiskMap(M3 eclipseModel) {
 	countMethod1 = countMethod2 = countMethod3 = 0;
 	for (compilationUnit <- compilationUnitAsts) {
 		visit(compilationUnit) {
-			//case \method(_, _, _, _): {countMethod1 += 1; } Empty methods?
+			case \method(_, _, _, _): { riskMap["low"] += 1; }
 			case \method(_, _, _, _, Statement implementation): {
 				riskMap = addToRiskMap(riskMap, implementation, eclipseModel);
 				countMethod2 += 1;

@@ -18,6 +18,7 @@ import Set;
 import List;
 import String;
 import Relation;
+import util::Math;
 
 import lang::java::m3::Core;
 import codeProperties::volume;
@@ -36,7 +37,7 @@ public int getTestCoverageScore(M3 eclipseModel) {
 	println("=== Unit Test Coverage ===");
 	println("Number of production lines of code:    <productionSize>");
 	println("Unit test lines coverage:              <coverage>");
-	println("Percentage covered of producion files: <percentageCovered>%\n");
+	println("Percentage covered of producion files: <round(percentageCovered, 0.001)>%\n");
 	println("Unit test coverage rating: <rating>\n");
 	
 	return rating;
