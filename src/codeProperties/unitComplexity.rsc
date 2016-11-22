@@ -60,7 +60,7 @@ public map[str, num] complexityRiskMap(M3 eclipseModel) {
 				riskMap = addToRiskMap(riskMap, m, eclipseModel);
 		}
 	}
-	
+
 	/* Convert absolute LOC in each riskMap category to percentages. */
 	real totalLines = sum([riskMap[index] | index <- riskMap]);
 	if (totalLines != 0)
