@@ -96,7 +96,7 @@ public str trimCode(location, eclipseModel) {
 	/* Remove all comments from the file source. */
 	fileContent = readFile(location);
 	for (<offset, commentLoc> <- commentLocs)
-		fileContent = replaceFirst(fileContent, readFile(commentLoc), "\n");
+		fileContent = replaceFirst(fileContent, readFile(commentLoc), "");
     
     /* Remove all whitespace lines. */
     return visit(trim(fileContent)) {
