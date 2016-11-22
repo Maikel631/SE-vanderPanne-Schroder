@@ -14,6 +14,7 @@ module codeProperties::volume
 
 import IO;
 import List;
+import Set;
 import String;
 
 import lang::java::jdt::m3::Core;
@@ -56,13 +57,24 @@ public int countLOC(location, eclipseModel) {
 	return size(split("\n", strippedContents));
 }
 
+public loc convertToLoc(method, model) {
+	list[loc] locList = toList(model@declarations[method]);
+	if (isEmpty(locList))
+		return |file:///null|;
+	return locList[0];
+}
+
 /* Remove all comments and whitespace lines from the code. */
 public str trimCode(location, eclipseModel) {
+	/* If the location is not a file location, translate it. */
+	if (location.scheme != "java+compilationUnit" && location.scheme != "file")
+		location = convertToLoc(location, eclipseModel);
+
 	/* Determine all comment entries for this file. Use the comment offset
 	 * to sort them. By sorting we can always remove the first occurrence.
 	 */
 	commentLocs = sort([<f.offset, f> | <e, f> <- eclipseModel@documentation, f.file == location.file]);
-	
+
 	/* Remove all comments from the file source. */
 	fileContent = readFile(location);
 	for (<offset, commentLoc> <- commentLocs)
