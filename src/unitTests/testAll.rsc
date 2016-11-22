@@ -4,6 +4,7 @@ import unitTests::testDuplication;
 import unitTests::testTestCoverage;
 import unitTests::testUnitSize;
 import unitTests::testVolume;
+import unitTests::testUnitComplexity;
 
 public bool runAllTests() {
 	assert testVolume() == true:         "runAllTests: testVolume fails";
