@@ -16,8 +16,16 @@ import IO;
 import List;
 import Set;
 import String;
+import ParseTree;
 
+import lang::java::\syntax::Java15;
 import lang::java::jdt::m3::Core;
+
+private map[loc, int] volumeIndex = ();
+public void clearIndex() {
+	volumeIndex = ();
+}
+
 
 public int getVolumeScore(M3 eclipseModel) {
 	/* Calculate LOC in all files, from which the rating is calculated. */
@@ -52,12 +60,26 @@ public int getVolume(eclipseModel) {
 }
 
 public int countLOC(location, eclipseModel) {
+	/* If the location is not a file location, translate it. */
+	if (location.scheme != "java+compilationUnit" && location.scheme != "file")
+		location = convertToLoc(location, eclipseModel);
+
+	/* Try to retrieve cached LOC. */
+	if (location in volumeIndex) {
+		return volumeIndex[location];
+	}
+
 	/* Remove comments and whitespace, return line count. */
 	strippedContents = trimCode(location, eclipseModel);
-	return size(split("\n", strippedContents));
+	int numLines = size(split("\n", strippedContents));
+	
+	/* Cache the LOC. */
+	volumeIndex[location] = numLines;
+	return numLines;
 }
 
 public loc convertToLoc(method, model) {
+	/* Convert a location to a 'file' typed location. */
 	list[loc] locList = toList(model@declarations[method]);
 	if (isEmpty(locList))
 		return |file:///null|;
@@ -66,10 +88,6 @@ public loc convertToLoc(method, model) {
 
 /* Remove all comments and whitespace lines from the code. */
 public str trimCode(location, eclipseModel) {
-	/* If the location is not a file location, translate it. */
-	if (location.scheme != "java+compilationUnit" && location.scheme != "file")
-		location = convertToLoc(location, eclipseModel);
-
 	/* Determine all comment entries for this file. Use the comment offset
 	 * to sort them. By sorting we can always remove the first occurrence.
 	 */
@@ -78,7 +96,7 @@ public str trimCode(location, eclipseModel) {
 	/* Remove all comments from the file source. */
 	fileContent = readFile(location);
 	for (<offset, commentLoc> <- commentLocs)
-		fileContent = replaceFirst(fileContent, readFile(commentLoc), "");
+		fileContent = replaceFirst(fileContent, readFile(commentLoc), "\n");
     
     /* Remove all whitespace lines. */
     return visit(trim(fileContent)) {

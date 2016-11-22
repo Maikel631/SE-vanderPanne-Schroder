@@ -44,27 +44,20 @@ public int getComplexityScore(M3 eclipseModel) {
 }
 
 public map[str, num] complexityRiskMap(M3 eclipseModel) {
-	set[loc] allMethods = methods(eclipseModel);
+	set[Declaration] AST = createAstsFromEclipseProject(eclipseModel.id, false);
 	map[str, num] riskMap = (
 		"low": 0.0, "moderate": 0.0, "high": 0.0, "very high": 0.0
 	);
-	
-	set[Declaration] compilationUnitAsts = createAstsFromEclipseProject(eclipseModel.id, false);
-	/* As Asts only consists of compilationUnits, a visit has to be performed
-	 * to calculate the cyclomatic complexity score of all methods in a file and
-	 * the LOC of this method.
-	 * This will create a riskMap consisting of the category name and the lines of code
-	 * which occur in this category.
-	 * The visit is based on this documentation page: http://bit.ly/SaL4yQ
-	 */
-	for (compilationUnit <- compilationUnitAsts) {
-		visit(compilationUnit) {
-			case \method(_, _, _, _):
-				riskMap["low"] += 1;
-			case \method(_, _, _, _, Statement implementation):
-				riskMap = addToRiskMap(riskMap, implementation, eclipseModel);
-			case \constructor(_, _, _, Statement implementation):
-				riskMap = addToRiskMap(riskMap, implementation, eclipseModel);
+
+	/* Visit each sourcefile in the AST, extract the methods. */
+	for (srcFile <- AST) {
+		visit(srcFile) {
+			case m:\method(_, _, _, _):
+				riskMap = addToRiskMap(riskMap, m, eclipseModel);
+			case m:\method(_, _, _, _, _):
+				riskMap = addToRiskMap(riskMap, m, eclipseModel);
+			case m:\constructor(_, _, _, _):
+				riskMap = addToRiskMap(riskMap, m, eclipseModel);
 		}
 	}
 	
@@ -76,12 +69,11 @@ public map[str, num] complexityRiskMap(M3 eclipseModel) {
 	return riskMap;
 }
 
-public map[str, num] addToRiskMap(map[str, num] riskMap, Statement methodAst, M3 eclipseModel) {
+public map[str, num] addToRiskMap(map[str, num] riskMap, Declaration methodAST, M3 eclipseModel) {
 	/* For each methodAST, add its LOC to the correct category. */
-	int complexity = cyclomaticComplexity(methodAst);
+	int complexity = cyclomaticComplexity(methodAST);
+	int linesOfCode = countLOC(methodAST@src, eclipseModel);
 	
-	/* Use the src to get only the method's code lines. */
-	int linesOfCode =  countLOC(methodAst@src, eclipseModel);
 	if (complexity <= 10)
 		riskMap["low"] +=  linesOfCode;
 	else if (complexity <= 20)
@@ -111,7 +103,7 @@ public int complexityRating(map[str, real] riskMap) {
 		return 1;
 }
 
-public int cyclomaticComplexity(Statement methodAst) {
+public int cyclomaticComplexity(Declaration methodAst) {
 	/* Start count at 1, because there is always one execution path. */
 	int count = 1;
 
