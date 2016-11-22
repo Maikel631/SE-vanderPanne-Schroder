@@ -4,7 +4,6 @@ import codeProperties::unitSize;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 
-//("high":40.0,"moderate":25.0,"very high":0.0,"low":104.0)
 
 public bool testUnitSize() {
 	loc testProject = |project://testProject|;

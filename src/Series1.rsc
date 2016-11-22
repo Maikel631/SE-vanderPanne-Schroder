@@ -29,8 +29,30 @@ import codeProperties::duplication;
 import codeProperties::unitSize;
 import codeProperties::unitTesting;
 
+import unitTests::testAll;
+
+
+public bool testSIGMethods() {
+	return runAllTests();
+}
+
+public void calculateSIGScores() {
+	println("=== Creating smallSQL model ===");
+	M3 smallsqlModel = createM3FromEclipseProject(|project://smallsql0.21_src|);
+	println("=== Calculate SIG scores ===");
+	calculateSIGScore(smallsqlModel);
+	
+	/* Clear volumeIndex which caches some line count results. */
+	clearIndex();
+	
+	println("\n=== Creating HSQLdb model ===");
+	M3 hsqldbModel = createM3FromEclipseProject(|project://hsqldb-2.3.1|);
+	println("=== Calculate SIG scores ===");
+	calculateSIGScore(hsqldbModel);
+}
+
 /* Calculate SIG scores for the Eclipse M3 project model. */
-public real calculateSIGScore(M3 eclipseModel) {	
+public real calculateSIGScore(M3 eclipseModel) {
 	/* Calculate score for each source code property. */
 	int volume = getVolumeScore(eclipseModel);
 	int unitComplexity = getComplexityScore(eclipseModel);
