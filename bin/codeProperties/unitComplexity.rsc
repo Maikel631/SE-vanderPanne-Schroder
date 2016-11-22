@@ -50,24 +50,25 @@ public map[str, num] complexityRiskMap(M3 eclipseModel) {
 	);
 	
 	set[Declaration] compilationUnitAsts = createAstsFromEclipseProject(eclipseModel.id, false);
-	/* ASTs only consists of compilationUnits - */
-	countMethod1 = countMethod2 = countMethod3 = 0;
+	/* As Asts only consists of compilationUnits, a visit has to be performed
+	 * to calculate the cyclomatic complexity score of all methods in a file and
+	 * the LOC of this method.
+	 * This will create a riskMap consisting of the category name and the lines of code
+	 * which occur in this category.
+	 * The visit is based on this documentation page: http://bit.ly/SaL4yQ
+	 */
 	for (compilationUnit <- compilationUnitAsts) {
 		visit(compilationUnit) {
-			case \method(_, _, _, _): { riskMap["low"] += 1; }
-			case \method(_, _, _, _, Statement implementation): {
+			case \method(_, _, _, _):
+				riskMap["low"] += 1;
+			case \method(_, _, _, _, Statement implementation):
 				riskMap = addToRiskMap(riskMap, implementation, eclipseModel);
-				countMethod2 += 1;
-			}
-			case \constructor(_, _, _, Statement implementation): {
+			case \constructor(_, _, _, Statement implementation):
 				riskMap = addToRiskMap(riskMap, implementation, eclipseModel);
-				countMethod3 += 1;
-			}
 		}
 	}
-	//println("<countMethod1> - <countMethod2> - <countMethod3>");
 	
-	/* Convert absolute LOC in each category to percentages. */
+	/* Convert absolute LOC in each riskMap category to percentages. */
 	real totalLines = sum([riskMap[index] | index <- riskMap]);
 	if (totalLines != 0)
 		riskMap = (index : riskMap[index] / totalLines | index <- riskMap);
@@ -78,6 +79,7 @@ public map[str, num] complexityRiskMap(M3 eclipseModel) {
 public map[str, num] addToRiskMap(map[str, num] riskMap, Statement methodAst, M3 eclipseModel) {
 	/* For each methodAST, add its LOC to the correct category. */
 	int complexity = cyclomaticComplexity(methodAst);
+	
 	/* Use the src to get only the method's code lines. */
 	int linesOfCode =  countLOC(methodAst@src, eclipseModel);
 	if (complexity <= 10)
@@ -109,12 +111,11 @@ public int complexityRating(map[str, real] riskMap) {
 		return 1;
 }
 
-public int cyclomaticComplexity(ast) {
+public int cyclomaticComplexity(Statement methodAst) {
 	/* Start count at 1, because there is always one execution path. */
 	int count = 1;
 
-	/* Declarations: http://bit.ly/SaL4yQ */
-	visit (ast) {
+	visit (methodAst) {
 		case \case(_): count += 1;
 		case \catch(_, _): count += 1;
 		case \do(_, _): count += 1;
