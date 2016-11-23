@@ -74,7 +74,7 @@ public map[str, real] unitSizeRiskMap(M3 eclipseModel) {
 		else if (methodSize > 60)
 			riskMap["very high"] += methodSize;
 	}
-	
+
 	/* Convert absolute LOC in each category to percentages. */
 	real totalLines = sum([riskMap[index] | index <- riskMap]);
 	riskMap = (index : riskMap[index] / totalLines | index <- riskMap);
