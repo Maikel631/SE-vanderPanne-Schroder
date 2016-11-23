@@ -36,7 +36,7 @@ public bool testSIGMethods() {
 	return runAllTests();
 }
 
-public void calculateSIGScores() {
+public void calculateSIGSmall() {
 	println("=== Creating smallSQL model ===");
 	M3 smallsqlModel = createM3FromEclipseProject(|project://smallsql0.21_src|);
 	println("=== Calculate SIG scores ===");
@@ -44,11 +44,16 @@ public void calculateSIGScores() {
 	
 	/* Clear volumeIndex which caches some line count results. */
 	clearIndex();
-	
+}
+
+public void calculateSIGLarge() {
 	println("\n=== Creating HSQLdb model ===");
 	M3 hsqldbModel = createM3FromEclipseProject(|project://hsqldb-2.3.1|);
 	println("=== Calculate SIG scores ===");
 	calculateSIGScore(hsqldbModel);
+	
+	/* Clear volumeIndex which caches some line count results. */
+	clearIndex();
 }
 
 /* Calculate SIG scores for the Eclipse M3 project model. */
