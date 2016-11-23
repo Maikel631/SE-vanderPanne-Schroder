@@ -6,7 +6,15 @@
  * FILE:  volume.rsc
  *        This file contains functions to strip a source file's contents
  *        from whitespace lines and comments, after which the linecount
- *        can be determined.
+ *        can be determined. 
+ *
+ *        The line count is not always accurate as not always all comment locations
+ *        are retrieved through the M3 model. So, the count is sometimes too high.  
+ *        The volumeIndex map is used to 'cache' some of the earlier line count calculation
+ *        of files and methods. The cache can be cleared with the clearIndex() function. 
+ *
+ *       The line count is finally translated into a 1-5 star rating using a
+ *       scoring table.
  *
  * USAGE: import 'codeProperties::volume' to use the functions.
  */

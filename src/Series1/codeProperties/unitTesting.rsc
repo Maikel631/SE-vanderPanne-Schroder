@@ -9,6 +9,9 @@
  *        called (directly or indirectly) by the unit tests written for the
  *        project.
  *
+ *        This percentage is then translated into a 1-5 star rating using a
+ *        scoring table.
+ *
  * USAGE: import 'codeProperties::unitTesting' to use the functions.
  */
 module Series1::codeProperties::unitTesting
