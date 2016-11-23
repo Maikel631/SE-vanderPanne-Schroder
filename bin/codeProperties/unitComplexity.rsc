@@ -117,6 +117,9 @@ public int cyclomaticComplexity(Declaration methodAst) {
 		case \for(_, _, _, _): count += 1;
 		case \foreach(_, _, _): count += 1;
 		case \while(_, _): count += 1;
+		case \conditional(_,_,_): count += 1;
+		case infix(_, "&&", _): count += 1;
+		case infix(_, "||", _): count += 1;
 	}
 	return count;
 }
