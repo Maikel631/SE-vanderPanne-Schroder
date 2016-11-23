@@ -28,7 +28,7 @@ import codeProperties::volume;
 
 public int getComplexityScore(M3 eclipseModel) {
 	/* Calculate the risk profile, convert it to a rating. */
-	map[str, num] riskMap = complexityRiskMap(eclipseModel);
+	map[str, real] riskMap = complexityRiskMap(eclipseModel);
 	int rating = complexityRating(riskMap);
 	
 	/* Output the calculated values, return rating. */
@@ -43,9 +43,9 @@ public int getComplexityScore(M3 eclipseModel) {
 	return rating;
 }
 
-public map[str, num] complexityRiskMap(M3 eclipseModel) {
+public map[str, real] complexityRiskMap(M3 eclipseModel) {
 	set[Declaration] AST = createAstsFromEclipseProject(eclipseModel.id, false);
-	map[str, num] riskMap = (
+	map[str, real] riskMap = (
 		"low": 0.0, "moderate": 0.0, "high": 0.0, "very high": 0.0
 	);
 
@@ -69,7 +69,7 @@ public map[str, num] complexityRiskMap(M3 eclipseModel) {
 	return riskMap;
 }
 
-public map[str, num] addToRiskMap(map[str, num] riskMap, Declaration methodAST, M3 eclipseModel) {
+public map[str, real] addToRiskMap(map[str, real] riskMap, Declaration methodAST, M3 eclipseModel) {
 	/* For each methodAST, add its LOC to the correct category. */
 	int complexity = cyclomaticComplexity(methodAST);
 	int linesOfCode = countLOC(methodAST@src, eclipseModel);

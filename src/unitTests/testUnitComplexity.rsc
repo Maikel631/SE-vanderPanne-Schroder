@@ -8,6 +8,7 @@ import lang::java::jdt::m3::Core;
 import lang::java::jdt::m3::AST;
 
 import codeProperties::unitComplexity;
+import util::Math;
 
 public bool testUnitComplexity() {
 	/* Define test project, create model and AST. */
@@ -16,14 +17,14 @@ public bool testUnitComplexity() {
 	set[Declaration] AST = createAstsFromEclipseProject(testModel.id, false);
 	
 	/* Create a riskMap for this model and check its correctness. */
-	map[str, num] riskMap = complexityRiskMap(testModel);
-	num low = riskMap["low"];
-	num moderate = riskMap["moderate"];
-	num high = riskMap["high"]; 
-	num veryHigh = riskMap["very high"];
+	map[str, real] riskMap = complexityRiskMap(testModel);
+	real low = riskMap["low"];
+	real moderate = riskMap["moderate"];
+	real high = riskMap["high"]; 
+	real veryHigh = riskMap["very high"];
 	
-	assert low == 1:     "testUnitSize: incorrect \'low\' percentage.";
-	assert moderate == 0: "testUnitSize: incorrect \'moderate\' percentage.";
+	assert low == 129.0/169:     "testUnitSize: incorrect \'low\' percentage.";
+	assert moderate == 40.0/169: "testUnitSize: incorrect \'moderate\' percentage.";
 	assert high == 0:     "testUnitSize: incorrect \'high\' percentage.";
 	assert veryHigh == 0:  "testUnitSize: incorrect \'very high\' percentage.";
 
