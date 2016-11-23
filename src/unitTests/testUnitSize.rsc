@@ -25,12 +25,12 @@ public bool testUnitSize() {
 	real veryHigh = riskMap["very high"];
 	
 	assert low == 104/169.0:     "testUnitSize: incorrect \'low\' percentage.";
-	assert moderate == 25/169.0: "testUnitSize: incorrect \'moderate\' percentage.";
-	assert high == 40/169.0:     "testUnitSize: incorrect \'high\' percentage.";
+	assert moderate == 65/169.0: "testUnitSize: incorrect \'moderate\' percentage.";
+	assert high == 0/169.0:     "testUnitSize: incorrect \'high\' percentage.";
 	assert veryHigh == 0/169.0:  "testUnitSize: incorrect \'very high\' percentage.";
 
 	/* Test whether the rating is correct. */
-	assert getUnitSizeScore(testModel) == 1: "testUnitSize: incorrect rating";
+	assert getUnitSizeScore(testModel) == 3: "testUnitSize: incorrect rating";
 
 	return true;
 }
