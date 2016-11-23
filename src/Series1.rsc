@@ -73,7 +73,7 @@ public real calculateSIGScore(M3 eclipseModel) {
 	
 	println("=== ISO 9126 Maintability subscores ===");
 	println("Analysability:  <round(analysability, 0.001)>");
-	println("Changability:   <round(changeability, 0.001)>");
+	println("Changeability:  <round(changeability, 0.001)>");
 	println("Stability:      <round(stability,     0.001)>");
 	println("Testability:    <round(testability,   0.001)>");
 	

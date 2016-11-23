@@ -36,9 +36,9 @@ public int getTestCoverageScore(M3 eclipseModel) {
 	
 	/* Output the calculated values, return rating. */
 	println("=== Unit Test Coverage ===");
-	println("Number of production lines of code:    <productionSize>");
-	println("Unit test lines coverage:              <coverage>");
-	println("Percentage covered of producion files: <round(percentageCovered, 0.001)>%\n");
+	println("Production lines of code:        <productionSize>");
+	println("Unit test coverage (LOC):        <coverage>");
+	println("Unit test coverage (percentage): <round(percentageCovered, 0.001)>%\n");
 	println("Unit test coverage rating: <rating>\n");
 	
 	return rating;
