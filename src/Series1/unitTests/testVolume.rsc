@@ -11,10 +11,11 @@ public bool testVolume() {
 	M3 testModel = createM3FromEclipseProject(testProject);
 	
 	/* Test whether the line count of the files:
-	 * Datum: 45, Gast: 20, Gast2: 20, Hotel: 52, Kamer:11, Opgave5: 11 = 200
+	 * Datum: 45, Gast: 20, Gast2: 20, Hotel: 52,
+	 * Kamer:11, Opgave5: 11, unitTests.java: 10 = 210
 	 * is the same as counted by the getVolume function.
 	 */
-	int totalLines = 45 + 20 * 2 + 52 + 11 + 52;
+	int totalLines = 45 + 20 * 2 + 52 + 11 + 52 + 10;
 	assert getVolume(testModel) == totalLines: "testVolume: incorrect line count."; 
 	
 	/* Test whether the rating is correct. */

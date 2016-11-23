@@ -65,9 +65,9 @@ public map[str, real] unitSizeRiskMap(M3 eclipseModel) {
 	/* Iterate over all methods, add its LOC to correct category. */
 	for (method <- allMethods) {
 		int methodSize = countLOC(method, eclipseModel);
-		if (methodSize <= 20)
+		if (methodSize <= 15)
 			riskMap["low"] += methodSize;
-		else if (methodSize <= 40)
+		else if (methodSize <= 30)
 			riskMap["moderate"] += methodSize;
 		else if (methodSize <= 60)
 			riskMap["high"] += methodSize;

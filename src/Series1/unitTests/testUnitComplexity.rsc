@@ -23,13 +23,13 @@ public bool testUnitComplexity() {
 	real high = riskMap["high"]; 
 	real veryHigh = riskMap["very high"];
 	
-	assert low == 129.0/169:     "testUnitSize: incorrect \'low\' percentage.";
-	assert moderate == 40.0/169: "testUnitSize: incorrect \'moderate\' percentage.";
-	assert high == 0:     "testUnitSize: incorrect \'high\' percentage.";
-	assert veryHigh == 0:  "testUnitSize: incorrect \'very high\' percentage.";
+	assert low == 136.0/176:     "testUnitComplexity: incorrect \'low\' percentage.";
+	assert moderate == 40.0/176: "testUnitComplexity: incorrect \'moderate\' percentage.";
+	assert high == 0:     "testUnitComplexity: incorrect \'high\' percentage.";
+	assert veryHigh == 0:  "testUnitComplexity: incorrect \'very high\' percentage.";
 
 	/* Test whether the rating is correct. */
-	assert getComplexityScore(testModel) == 5: "testUnitSize: incorrect rating";
+	assert getComplexityScore(testModel) == 5: "testUnitComplexity: incorrect rating";
 
 	return true;
 }

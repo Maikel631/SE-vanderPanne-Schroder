@@ -30,10 +30,10 @@ import Series1::codeProperties::volume;
 
 public int getTestCoverageScore(M3 eclipseModel) {
 	/* Calculate from the percentage covered the rating. */
-	map[str, num] testCoverage = unitTestCoverage(eclipseModel);
-	num coverage = testCoverage["coverage"];
-	num productionSize = testCoverage["productionSize"];
-	num percentageCovered = testCoverage["percentageCovered"];
+	map[str, real] testCoverage = unitTestCoverage(eclipseModel);
+	real coverage = testCoverage["coverage"];
+	real productionSize = testCoverage["productionSize"];
+	real percentageCovered = testCoverage["percentageCovered"];
 	
 	int rating = testCoverageRating(percentageCovered);
 	
@@ -62,7 +62,7 @@ public int testCoverageRating(real percentageCovered) {
 	return -1;
 }
 
-public map[str, num] unitTestCoverage(M3 eclipseModel) {
+public map[str, real] unitTestCoverage(M3 eclipseModel) {
     /* Fetch all methods and method invocations for this project. */
     set[loc] modelMethods = methods(eclipseModel);
     rel[loc, loc] modelInvocations = eclipseModel@methodInvocation;
@@ -84,7 +84,7 @@ public map[str, num] unitTestCoverage(M3 eclipseModel) {
 	 * be calculated over only production code.
 	 */
 	calledMethods -= testMethods;
-	
+		
     /* Determine the cumulative linecount for all called methods. */
     int coverage = 0;
     if (!isEmpty(calledMethods))
@@ -94,7 +94,11 @@ public map[str, num] unitTestCoverage(M3 eclipseModel) {
 	int productionSize = sum([countLOC(method, eclipseModel) | method <- (modelMethods - testMethods)]); 
 	real percentageCovered = (coverage / toReal(productionSize)) * 100.0;
 
-	return ("coverage": coverage, "productionSize": productionSize, "percentageCovered": percentageCovered);
+	return (
+		"coverage": toReal(coverage),
+		"productionSize": toReal(productionSize),
+		"percentageCovered": percentageCovered
+	);
 }
 
 
