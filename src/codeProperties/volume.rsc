@@ -18,7 +18,6 @@ import Set;
 import String;
 import ParseTree;
 
-import lang::java::\syntax::Java15;
 import lang::java::jdt::m3::Core;
 
 private map[loc, int] volumeIndex = ();
