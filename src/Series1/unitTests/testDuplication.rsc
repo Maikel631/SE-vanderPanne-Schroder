@@ -1,8 +1,8 @@
-module unitTests::testDuplication
+module Series1::unitTests::testDuplication
 
 import IO;
 import lang::java::jdt::m3::Core;
-import codeProperties::duplication;
+import Series1::codeProperties::duplication;
 
 public bool testDuplication() {
 	/* Define test project and source file path, create model. */

@@ -11,7 +11,7 @@
  *
  * USAGE: import 'codeProperties::unitTesting' to use the functions.
  */
-module codeProperties::unitTesting
+module Series1::codeProperties::unitTesting
 
 import IO;
 import Set;
@@ -22,7 +22,7 @@ import Relation;
 import util::Math;
 
 import lang::java::m3::Core;
-import codeProperties::volume;
+import Series1::codeProperties::volume;
 
 
 public int getTestCoverageScore(M3 eclipseModel) {

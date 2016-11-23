@@ -1,6 +1,6 @@
-module unitTests::testTestCoverage
+module Series1::unitTests::testTestCoverage
 
-import codeProperties::unitTesting;
+import Series1::codeProperties::unitTesting;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 

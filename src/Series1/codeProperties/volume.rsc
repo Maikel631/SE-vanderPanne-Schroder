@@ -10,7 +10,7 @@
  *
  * USAGE: import 'codeProperties::volume' to use the functions.
  */
-module codeProperties::volume
+module Series1::codeProperties::volume
 
 import IO;
 import List;

@@ -1,4 +1,4 @@
-module unitTests::testUnitComplexity
+module Series1::unitTests::testUnitComplexity
 
 import IO;
 
@@ -7,7 +7,7 @@ import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 import lang::java::jdt::m3::AST;
 
-import codeProperties::unitComplexity;
+import Series1::codeProperties::unitComplexity;
 import util::Math;
 
 public bool testUnitComplexity() {

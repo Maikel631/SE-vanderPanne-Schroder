@@ -1,6 +1,6 @@
-module unitTests::testVolume
+module Series1::unitTests::testVolume
 
-import codeProperties::volume;
+import Series1::codeProperties::volume;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 

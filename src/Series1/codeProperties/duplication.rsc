@@ -13,7 +13,7 @@
  *
  * USAGE: import 'codeProperties::duplication' to use the functions.
  */
-module codeProperties::duplication
+module Series1::codeProperties::duplication
 
 import IO;
 import List;
@@ -21,7 +21,7 @@ import String;
 
 import util::Math;
 import lang::java::m3::Core;
-import codeProperties::volume;
+import Series1::codeProperties::volume;
 
 public int getDuplicationScore(M3 eclipseModel) {
 	int totalLOC = getVolume(eclipseModel);

@@ -13,13 +13,13 @@
  *
  * USAGE: import 'codeProperties::unitTesting' to use the functions.
  */
-module codeProperties::unitSize
+module Series1::codeProperties::unitSize
 
 import IO;
 import List;
 
 import lang::java::m3::Core;
-import codeProperties::volume;
+import Series1::codeProperties::volume;
 
 public int getUnitSizeScore(eclipseModel) {
 	/* Calculate the risk profile, convert it to a rating. */

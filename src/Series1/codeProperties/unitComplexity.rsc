@@ -13,7 +13,7 @@
  *
  * USAGE: import 'codeProperties::unitComplexity' to use the functions.
  */
-module codeProperties::unitComplexity
+module Series1::codeProperties::unitComplexity
 
 import IO;
 import List;
@@ -24,7 +24,7 @@ import lang::java::m3::AST;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 import lang::java::jdt::m3::AST;
-import codeProperties::volume;
+import Series1::codeProperties::volume;
 
 public int getComplexityScore(M3 eclipseModel) {
 	/* Calculate the risk profile, convert it to a rating. */

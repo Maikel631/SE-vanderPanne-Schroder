@@ -9,7 +9,7 @@
  *
  * USAGE: import 'Series1' to use the functions.   
  */
-module Series1
+module Series1::Series1
 
 import IO;
 import Set;
@@ -23,13 +23,13 @@ import lang::java::m3::AST;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 
-import codeProperties::volume;
-import codeProperties::unitComplexity;
-import codeProperties::duplication;
-import codeProperties::unitSize;
-import codeProperties::unitTesting;
+import Series1::codeProperties::volume;
+import Series1::codeProperties::unitComplexity;
+import Series1::codeProperties::duplication;
+import Series1::codeProperties::unitSize;
+import Series1::codeProperties::unitTesting;
 
-import unitTests::testAll;
+import Series1::unitTests::testAll;
 
 
 public bool testSIGMethods() {

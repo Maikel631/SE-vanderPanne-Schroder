@@ -1,10 +1,10 @@
-module unitTests::testAll
+module Series1::unitTests::testAll
 
-import unitTests::testDuplication;
-import unitTests::testTestCoverage;
-import unitTests::testUnitSize;
-import unitTests::testVolume;
-import unitTests::testUnitComplexity;
+import Series1::unitTests::testDuplication;
+import Series1::unitTests::testTestCoverage;
+import Series1::unitTests::testUnitSize;
+import Series1::unitTests::testVolume;
+import Series1::unitTests::testUnitComplexity;
 
 public bool runAllTests() {
 	assert testVolume() == true:         "runAllTests: testVolume fails";
