@@ -35,16 +35,15 @@ public void findDuplicatesAST(M3 eclipseModel) {
 	set[Declaration] AST = createAstsFromEclipseProject(eclipseModel.id, false);
 	
 	/* Top-bottom visit of all files. */
-	map[node, list[loc]] treeMap = removeAnnotations(AST);
+	map[node, list[loc]] treeMap = createTreeMap(AST);
 	
-	/* Loop over subtrees, find subtrees > 6. */
+	/* Loop over subtrees. */
 	for (subtree <- treeMap) {
 		if (size(treeMap[subtree]) < 2)
 			continue;
-		
-		/* Check size of the duplicated subtree. */
-		if (countLOC(treeMap[subtree][0], eclipseModel) > 6)
-			println(treeMap[subtree][0]);
+			
+		/* */
+		println(treeMap[subtree]);
 	}
 }
 
@@ -64,38 +63,46 @@ public void stripAST(M3 eclipseModel) {
 	}
 }
 
-public map[node, list[loc]] removeAnnotations(set[Declaration] AST) {
+public map[node, list[loc]] createTreeMap(set[Declaration] AST) {
 	map[node, list[loc]] treeMap = ();
 	
-	AST = visit(AST) {
-		case node n => {
-			println(n);
-			annotations = getAnnotations(n);
-			
-			/* Skip nodes with no annotations. */
-			if (!isEmpty(annotations)) {
-				if (loc srcNode := annotations["src"]) {
-					location = srcNode;
-					cleanNode = delAnnotations(n);
-					
-					if (cleanNode in treeMap)
-						treeMap[cleanNode] += location;
-					else
-						treeMap[cleanNode] = [location];
-					
-					cleanNode;
-				}
-				else
-					n;
-			}
-			else
-				n;
-		}
-		//case value n: println(n);
+	top-down visit(AST) {
+		case Declaration n: treeMap = processNode(treeMap, n);
+		case Expression n:  treeMap = processNode(treeMap, n);
+		case Statement n:   treeMap = processNode(treeMap, n);
 	}
-	//iprintln(AST);
 	//for (snippet <- treeMap)
 	//	println(treeMap[snippet]);
 		
 	return treeMap;
+}
+
+public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNode) {
+	/* Skip subtrees smaller than 15 nodes. */
+	if (treeSize(curNode) < 15)
+		return treeMap;
+	annotations = getAnnotations(curNode);
+	
+	/* Skip nodes with no annotations, cast src to loc. */
+	if (!isEmpty(annotations)) {
+		if (loc location := annotations["src"]) {
+			cleanNode = delAnnotations(curNode);
+			if (curNode in treeMap)
+				treeMap[cleanNode] += location;
+			else
+				treeMap[cleanNode] = [location];
+		}
+	}
+	
+	return treeMap;
+}
+
+public int treeSize(node curNode) {
+	subTreeSize = 0;
+	visit (curNode) {
+		case Declaration n: subTreeSize += 1;
+		case Expression n: subTreeSize += 1;
+		case Statement n: subTreeSize += 1;
+	}
+	return subTreeSize;
 }
