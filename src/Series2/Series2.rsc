@@ -39,34 +39,65 @@ public void findDuplicatesAST(M3 eclipseModel) {
 	map[node, list[loc]] treeMap = createTreeMap(AST, eclipseModel);
 	count = otherCount = 0;
 	
+	rel[int, loc, loc] clonePairs = {};
 	for (duplicateCode <- treeMap) {
 		if (size(treeMap[duplicateCode]) < 2)
 			continue;
-		println(treeMap[duplicateCode]);
+	
+		
+		for (loc locA <- treeMap[duplicateCode]) {
+			for (loc locB <- treeMap[duplicateCode], locA != locB) {
+				if (<locB.offset, locB, locA> notin clonePairs)
+					clonePairs += <locA.offset, locA, locB>;
+			}
+		}
 	}
 	
-	/* Loop over subtrees. */
-	//fullLocList = [];
-	//for (locList <- range(treeMap)) {
-	//	if (size(locList) < 2)
-	//		continue;
-	//	fullLocList += locList;
+	lrel[loc, loc] sortedPairs = [];
+	/* Sort on file names */
+	sortedPairs = [<locA, locB> | <_, locA, locB> <- sort(clonePairs)];
+	sortedPairs = for (f <- sortedPairs) {
+		if (f[0].path > f[1].path)
+			append f;
+		else
+			append <f[1], f[0]>;
+	}
+	/* Sort on file Loc */
+	
+	//for (int i <- [0..size(sortedPairs)]) {
+	//	println("<i> - SortedPair: <sortedPairs[i]>");
 	//}
-	//println(size(fullLocList));
-	//
-	//someList = {};
-	//for (location1 <- fullLocList) {
-	//	for (location2 <- fullLocList, location2 != location1) {
-	//		println(location1);
-	//		println(location2);
-	//		println(isSubTree(location1, location2));
-	//		if (!isSubTree(location1, location2)) {
-	//			someList += location1;
-	//		}
-	//	}
-	//}
-	//println(size(someList));
-	//println(someList);
+	
+	//lrel[loc, loc] sortedPairs = [<locA, locB> | 
+
+
+	rel[loc, loc] realPairs = {};	
+	rel[loc, loc] containedPairs = {};	
+	rel[loc, loc] checked = {};
+	
+	for (pairA <- sortedPairs) {
+		for (pairB <- sortedPairs) {
+			if (pairA == pairB  || pairB in checked || pairB in containedPairs)
+				continue;
+			
+			/* As everything is sorted, you can easily check if it is an contained pair */
+			if (isSubTree(pairA[0], pairB[0]) && isSubTree(pairA[1], pairB[1])) {
+				realPairs += pairA;
+				containedPairs += pairB;
+			}
+			else { // Non containment
+				realPairs += pairB;
+			}
+		}
+		checked += pairA;
+	}
+
+	realPairs -= containedPairs;
+
+	for ( r <- realPairs) {
+		println(r);
+	}
+
 }
 
 public void stripAST(M3 eclipseModel) {
@@ -143,6 +174,12 @@ public map[node, list[loc]] processNodeList(map[node, list[loc]] treeMap,
 	return treeMap;
 }
 
+public loc extractSrc (node n) {
+	if (loc location := getAnnotations(n)["src"])
+		return location;
+	return |file://null|;
+}
+
 public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNode) {
 	/* Skip subtrees smaller than 15 nodes. */
 	if (treeSize(curNode) < 10)
@@ -164,12 +201,26 @@ public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNo
 	return treeMap;
 }
 
+public bool isPartOf(loc srcA, loc srcB) {
+	return (isSubTree(srcA, srcB) || isOverlapping(srcA, srcB));
+}
+
 /* Is 'a' a subtree of 'b'? */
 public bool isSubTree(loc srcA, loc srcB) {
 	endA = srcA.offset + srcA.length;
 	endB = srcB.offset + srcB.length;
 	
-	if (srcA.path == srcB.path && srcA.offset >= srcB.offset && endA <= endB)
+	if (srcA.path == srcB.path && srcA.offset <= srcB.offset && endB <= endA)
+		return true;
+	return false;
+}
+
+/* Does 'a' overlap  'b'? */
+public bool isOverlapping(loc srcA, loc srcB) {
+	endA = srcA.offset + srcA.length;
+	endB = srcB.offset + srcB.length;
+	
+	if (srcA.path == srcB.path && (srcA.offset < endB || srcB.offset < endA))
 		return true;
 	return false;
 }
@@ -201,7 +252,7 @@ public list[list[node]] sliceLists(list[node] inputList) {
 			if (i == j)
 				continue;
 			list[node] slice = inputList[i..j];
-			if (size(slice) > 1)
+			if (size(slice) > 1 && size(slice) != size(inputList))
 				sliceList += slice; 
 		}
 	}
