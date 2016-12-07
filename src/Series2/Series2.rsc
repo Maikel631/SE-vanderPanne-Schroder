@@ -16,6 +16,7 @@
 module Series2::Series2
 
 import IO;
+import Set;
 import Type;
 import List;
 import Node;
@@ -36,15 +37,30 @@ public void findDuplicatesAST(M3 eclipseModel) {
 	
 	/* Top-bottom visit of all files. */
 	map[node, list[loc]] treeMap = createTreeMap(AST);
+	count = otherCount = 0;
 	
 	/* Loop over subtrees. */
-	for (subtree <- treeMap) {
-		if (size(treeMap[subtree]) < 2)
+	fullLocList = [];
+	for (locList <- range(treeMap)) {
+		if (size(locList) < 2)
 			continue;
-			
-		/* */
-		println(treeMap[subtree]);
+		fullLocList += locList;
 	}
+	println(size(fullLocList));
+	
+	someList = {};
+	for (location1 <- fullLocList) {
+		for (location2 <- fullLocList, location2 != location1) {
+			println(location1);
+			println(location2);
+			println(isSubTree(location1, location2));
+			if (!isSubTree(location1, location2)) {
+				someList += location1;
+			}
+		}
+	}
+	println(size(someList));
+	println(someList);
 }
 
 public void stripAST(M3 eclipseModel) {
@@ -70,6 +86,10 @@ public map[node, list[loc]] createTreeMap(set[Declaration] AST) {
 		case Declaration n: treeMap = processNode(treeMap, n);
 		case Expression n:  treeMap = processNode(treeMap, n);
 		case Statement n:   treeMap = processNode(treeMap, n);
+		//case list[Declaration] n: {
+		//	println();
+		//	for (m <- n) println(m);
+		//}
 	}
 	//for (snippet <- treeMap)
 	//	println(treeMap[snippet]);
@@ -77,24 +97,48 @@ public map[node, list[loc]] createTreeMap(set[Declaration] AST) {
 	return treeMap;
 }
 
+//public processNodeList() {
+//
+//}
+
 public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNode) {
 	/* Skip subtrees smaller than 15 nodes. */
-	if (treeSize(curNode) < 15)
+	if (treeSize(curNode) < 10)
 		return treeMap;
 	annotations = getAnnotations(curNode);
 	
 	/* Skip nodes with no annotations, cast src to loc. */
-	if (!isEmpty(annotations)) {
+	if (!isEmpty(annotations) && "src" in annotations) {
 		if (loc location := annotations["src"]) {
-			cleanNode = delAnnotations(curNode);
+			/* Not necessary; makes more visible. */
+			//curNode = cleanTree(curNode);
 			if (curNode in treeMap)
-				treeMap[cleanNode] += location;
+				treeMap[curNode] += location;
 			else
-				treeMap[cleanNode] = [location];
+				treeMap[curNode] = [location];
 		}
 	}
 	
 	return treeMap;
+}
+
+/* Is 'a' a subtree of 'b'? */
+public bool isSubTree(loc srcA, loc srcB) {
+	endA = srcA.offset + srcA.length;
+	endB = srcB.offset + srcB.length;
+	
+	if (srcA.path == srcB.path && srcA.offset >= srcB.offset && endA <= endB)
+		return true;
+	return false;
+}
+
+/* Not necessary! */
+public node cleanTree(node curNode) {
+	curNode = delAnnotations(curNode);
+	curNode = visit (curNode) {
+		case node n => delAnnotations(n)
+	}
+	return curNode;
 }
 
 public int treeSize(node curNode) {
