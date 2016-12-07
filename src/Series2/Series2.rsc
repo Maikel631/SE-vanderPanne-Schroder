@@ -39,7 +39,7 @@ public void findDuplicatesAST(M3 eclipseModel) {
 	map[node, list[loc]] treeMap = createTreeMap(AST, eclipseModel);
 	count = otherCount = 0;
 	
-	rel[int, loc, loc] clonePairs = {};
+	rel[tuple[int, int], loc, loc] clonePairs = {};
 	for (duplicateCode <- treeMap) {
 		if (size(treeMap[duplicateCode]) < 2)
 			continue;
@@ -47,56 +47,69 @@ public void findDuplicatesAST(M3 eclipseModel) {
 		
 		for (loc locA <- treeMap[duplicateCode]) {
 			for (loc locB <- treeMap[duplicateCode], locA != locB) {
-				if (<locB.offset, locB, locA> notin clonePairs)
-					clonePairs += <locA.offset, locA, locB>;
+				/* Create the keys to sort all the file offset on, 
+				 * so the pairs can be merged more easily. 
+				 *
+		         * You want to sort the file offset from smallest to largest,
+		         * but you want to sort the file lengths from largest to smallest.
+		         * Workaround: use as second sortKey: offset minus the length. 
+				 */
+				keyA = <locA.offset, locA.offset - locA.length>;
+				keyB = <locB.offset, locB.offset - locB.length>;
+				if (<keyA, locA, locB> notin clonePairs &&
+				    <keyB, locB, locA> notin clonePairs) {
+				
+					/* Make sure when covering multiple file pairs, 
+					 * the first index is always the same. Thus, swap if necessary. */
+					if (locA.path < locB.path)
+						clonePairs += <keyA, locA, locB>;
+					else
+						clonePairs += <keyB, locB, locA>;
+				}
 			}
 		}
 	}
 	
-	lrel[loc, loc] sortedPairs = [];
-	/* Sort on file names */
-	sortedPairs = [<locA, locB> | <_, locA, locB> <- sort(clonePairs)];
-	sortedPairs = for (f <- sortedPairs) {
-		if (f[0].path > f[1].path)
-			append f;
-		else
-			append <f[1], f[0]>;
-	}
-	/* Sort on file Loc */
-	
-	//for (int i <- [0..size(sortedPairs)]) {
-	//	println("<i> - SortedPair: <sortedPairs[i]>");
-	//}
-	
-	//lrel[loc, loc] sortedPairs = [<locA, locB> | 
+	/* Sort on the keys created above and create a final sorted list of file relations. */
+	lrel[loc, loc] sortedPairs = [<locA, locB> | <_, locA, locB> <- sort(clonePairs)];
 
-
+	/* Optimization: use maps. */
 	rel[loc, loc] realPairs = {};	
-	rel[loc, loc] containedPairs = {};	
-	rel[loc, loc] checked = {};
+	map[tuple[loc, loc], bool] containedPairs = ();	
+	map[tuple[loc, loc], bool] checked = ();
 	
+	
+	/* Merge each sorted clonePair if it is the parent of the other.  */
 	for (pairA <- sortedPairs) {
 		for (pairB <- sortedPairs) {
+			/* Some iterations can be skipped. */
 			if (pairA == pairB  || pairB in checked || pairB in containedPairs)
 				continue;
 			
-			/* As everything is sorted, you can easily check if it is an contained pair */
-			if (isSubTree(pairA[0], pairB[0]) && isSubTree(pairA[1], pairB[1])) {
+			/* As everything is sorted, you can easily check if it is an contained pair.
+			 * If pairB falls into pairA, it is part of the same clone. So pairA, is the
+			 * parent of B.
+			 */
+			if (isParentTree(pairA[0], pairB[0]) && isParentTree(pairA[1], pairB[1])) {
 				realPairs += pairA;
-				containedPairs += pairB;
+				containedPairs[pairB] = true;
 			}
-			else { // Non containment
+			else { /* Found likely a clone pair that is probably not part of a parent clone: thus add it. */
 				realPairs += pairB;
 			}
 		}
-		checked += pairA;
+		checked[pairA] = true;
 	}
 
-	realPairs -= containedPairs;
+	/* Now all containedPairs are known, remove the likely pairs which were part of a parent clone. */
+	realPairs -= domain(containedPairs);
 
 	for ( r <- realPairs) {
 		println(r);
 	}
+
+	/* TODO: Find clone classes */
+	
 
 }
 
@@ -201,12 +214,12 @@ public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNo
 	return treeMap;
 }
 
-public bool isPartOf(loc srcA, loc srcB) {
-	return (isSubTree(srcA, srcB) || isOverlapping(srcA, srcB));
-}
+//public bool isPartOf(loc srcA, loc srcB) {
+//	return (isParentTree(srcA, srcB) || isOverlapping(srcA, srcB));
+//}
 
 /* Is 'a' a subtree of 'b'? */
-public bool isSubTree(loc srcA, loc srcB) {
+public bool isParentTree(loc srcA, loc srcB) {
 	endA = srcA.offset + srcA.length;
 	endB = srcB.offset + srcB.length;
 	
@@ -216,14 +229,14 @@ public bool isSubTree(loc srcA, loc srcB) {
 }
 
 /* Does 'a' overlap  'b'? */
-public bool isOverlapping(loc srcA, loc srcB) {
-	endA = srcA.offset + srcA.length;
-	endB = srcB.offset + srcB.length;
-	
-	if (srcA.path == srcB.path && (srcA.offset < endB || srcB.offset < endA))
-		return true;
-	return false;
-}
+//public bool isOverlapping(loc srcA, loc srcB) {
+//	endA = srcA.offset + srcA.length;
+//	endB = srcB.offset + srcB.length;
+//	
+//	if (srcA.path == srcB.path && (srcA.offset < endB || srcB.offset < endA))
+//		return true;
+//	return false;
+//}
 
 /* Not necessary! */
 public node cleanTree(node curNode) {
