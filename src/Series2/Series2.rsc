@@ -19,6 +19,7 @@ import IO;
 import Set;
 import Type;
 import List;
+import Relation;
 import Node;
 import Map;
 import String;
@@ -32,8 +33,10 @@ import lang::java::jdt::m3::AST;
 
 import Series2::trimCode;
 
-public void findDuplicatesAST(M3 eclipseModel) {
+public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) {
 	set[Declaration] AST = createAstsFromEclipseProject(eclipseModel.id, false);
+	if (detectType2 == true)
+		AST = stripAST(AST);
 	
 	/* Top-bottom visit of all files. */
 	map[node, list[loc]] treeMap = createTreeMap(AST, eclipseModel);
@@ -43,8 +46,7 @@ public void findDuplicatesAST(M3 eclipseModel) {
 	for (duplicateCode <- treeMap) {
 		if (size(treeMap[duplicateCode]) < 2)
 			continue;
-	
-		
+
 		for (loc locA <- treeMap[duplicateCode]) {
 			for (loc locB <- treeMap[duplicateCode], locA != locB) {
 				/* Create the keys to sort all the file offset on, 
@@ -78,7 +80,6 @@ public void findDuplicatesAST(M3 eclipseModel) {
 	map[tuple[loc, loc], bool] containedPairs = ();	
 	map[tuple[loc, loc], bool] checked = ();
 	
-	
 	/* Merge each sorted clonePair if it is the parent of the other.  */
 	for (pairA <- sortedPairs) {
 		for (pairB <- sortedPairs) {
@@ -104,20 +105,55 @@ public void findDuplicatesAST(M3 eclipseModel) {
 	/* Now all containedPairs are known, remove the likely pairs which were part of a parent clone. */
 	realPairs -= domain(containedPairs);
 
-	for ( r <- realPairs) {
-		println(r);
-	}
-
-	/* TODO: Find clone classes */
-	
-
+	return getCloneClasses(realPairs);
 }
 
-public void stripAST(M3 eclipseModel) {
-	AST = createAstsFromEclipseProject(eclipseModel.id, false);
+/* TODO: It should be possible to get this a bit nicer... */
+public set[set[loc]] getCloneClasses(rel[loc, loc] realPairs) {
+	set[loc] indices = domain(realPairs) + range(realPairs);
+	
+	set[set[loc]] cloneClasses = {};
+	for (i <- indices) {
+		/* Define set of clone locations */
+		set[loc] cloneClass = {i} + realPairs[i];
+		
+		for (j <- indices, i != j) {
+			/* For the set of clone locations,
+			 * check if you can find 
+			 * the same location in the ranges, 
+			 * if it is, j is part of the cloneClass;
+			 */
+			for (cloneLoc <- realPairs[j]) { 
+				if (cloneLoc == i) {
+					cloneClass += j;
+					break;
+				}
+			}
+		}
+		cloneClasses += {cloneClass};
+	}
+
+	/* Extract the subset classes which have to be deleted as it is already
+	 * a subset of another class.
+	 */
+	set[set[loc]] subSetClasses = {};
+	for (classA <- cloneClasses) {
+		for (classB <- cloneClasses, classA != classB) {
+			/* Is classA subset of classB? */
+			if (classA <= classB) {
+				subSetClasses += {classA};
+				break;
+			}
+		}
+	}
+	return cloneClasses - subSetClasses;
+}
+
+
+public set[Declaration] stripAST(set[Declaration] AST) {
 	
 	/* Filter code fragments for type 2 duplicates. */
-	AST = visit(AST) {
+	return visit(AST) {
 		case Type x => string()
 		case \number(_) => \number("1")
 		case \booleanLiteral(_) => \booleanLiteral(true)
