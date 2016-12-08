@@ -61,11 +61,7 @@ public void main(M3 eclipseModel) {
 			lengthOffset = (dup.end.line - dup.begin.line) / fileLengths[pathToLoc(dup.path)];
 			
 			/* Create box for this duplicate, add it to the appropriate bin. */
-			fileBox = box(
-				fillColor(randColor),
-				align(0, startOffset),
-				vshrink(lengthOffset)
-			);
+			fileBox = nestedbbox(dup, randColor, startOffset, lengthOffset);
 
 			/* Add box to appropriate file 'bin'. */
 			if (pathToLoc(dup.path) in fileBoxMap)
@@ -104,6 +100,18 @@ public Figure bbox(loc f, int i, list[node] nestedBoxes, real offsetWidth, real 
 		align(i * offsetWidth, 0),
 		hshrink(widthBoxes),
 		vshrink(heightBoxes[f]),
+		onMouseUp(bool (int butnr, map[KeyModifier, bool] modifiers) {
+			openWindow(f);
+			return true;
+		})
+	);
+}
+
+public Figure nestedbbox(loc f, int randColor, real startOffset, real lengthOffset) {
+	return box(
+		fillColor(randColor),
+		align(0, startOffset),
+		vshrink(lengthOffset),
 		onMouseUp(bool (int butnr, map[KeyModifier, bool] modifiers) {
 			openWindow(f);
 			return true;
