@@ -82,9 +82,9 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
 	
 	/* Merge each sorted clonePair if it is the parent of the other.  */
 	for (pairA <- sortedPairs) {
-		for (pairB <- sortedPairs) {
+		for (pairB <- sortedPairs, pairA != pairB) {
 			/* Some iterations can be skipped. */
-			if (pairA == pairB  || pairB in checked || pairB in containedPairs)
+			if (pairB in checked || pairB in containedPairs)
 				continue;
 			
 			/* As everything is sorted, you can easily check if it is an contained pair.
@@ -189,14 +189,18 @@ public map[node, list[loc]] createTreeMap(set[Declaration] AST, M3 eclipseModel)
 }
 
 public node createNodeFromList(list[node] nodeList, M3 eclipseModel) {
+	if (isEmpty(nodeList))
+		return makeNode("invalid", []);
+	
 	/* Extract start and end node location. */
 	if (loc locStart := getAnnotations(nodeList[0])["src"] &&
 		loc locEnd := getAnnotations(nodeList[-1])["src"]) {
 		loc mergedLoc = mergeLocations(locStart, locEnd);
 		
 		/* Check if the merged location encompassed at least 6 LOC. */
-		if (countLOC(mergedLoc, eclipseModel) < 6)
-			return makeNode("invalid", []);
+		if (mergedLoc.end.line - mergedLoc.begin.line < 6 || countLOC(mergedLoc, eclipseModel) < 6) {
+				return makeNode("invalid", []);
+		}
 		
 		/* Create a node using the nodeList and location. */
 		newNode = makeNode("node", nodeList);
@@ -231,13 +235,16 @@ public loc extractSrc (node n) {
 
 public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNode) {
 	/* Skip subtrees smaller than 15 nodes. */
-	if (treeSize(curNode) < 10)
-		return treeMap;
+	//if (treeSize(curNode) < 10)
+	//	return treeMap;
 	annotations = getAnnotations(curNode);
 	
 	/* Skip nodes with no annotations, cast src to loc. */
 	if (!isEmpty(annotations) && "src" in annotations) {
 		if (loc location := annotations["src"]) {
+			if (location.end.line - location.begin.line < 6)
+				return treeMap;
+		
 			/* Not necessary; makes more visible. */
 			//curNode = cleanTree(curNode);
 			if (curNode in treeMap)
@@ -293,7 +300,10 @@ public int treeSize(node curNode) {
 	return subTreeSize;
 }
 
-public list[list[node]] sliceLists(list[node] inputList) {
+/* TODO: When using max size = 2, then it is considerably faster.
+ * However, clone merging has to be changed significantly. Check how.
+ */
+public list[list[node]] sliceLists(list[node] inputList) {	
 	sizeList = size(inputList);
 	set[list[node]] sliceList = {};
 	for (int i <- [0..sizeList]) {
@@ -301,7 +311,8 @@ public list[list[node]] sliceLists(list[node] inputList) {
 			if (i == j)
 				continue;
 			list[node] slice = inputList[i..j];
-			if (size(slice) > 1 && size(slice) != size(inputList))
+			int sliceSize = size(slice);
+			if (sliceSize > 1 && sliceSize != size(inputList))
 				sliceList += slice; 
 		}
 	}
