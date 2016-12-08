@@ -151,7 +151,7 @@ public set[set[loc]] getCloneClasses(rel[loc, loc] realPairs) {
 	
 	/* Write clone classes to file and return. */
 	finalClasses = cloneClasses - subSetClasses;
-	writeFile(writeLoc + "result", finalClasses);
+	writeFile(writeLoc + "result", "<finalClasses>;");
 	return finalClasses;
 }
 
@@ -196,7 +196,7 @@ public node createNodeFromList(list[node] nodeList, M3 eclipseModel) {
 		loc mergedLoc = mergeLocations(locStart, locEnd);
 		
 		/* Check if the merged location encompassed at least 6 LOC. */
-		if (mergedLoc.end.line - mergedLoc.begin.line < 6 || countLOC(mergedLoc, eclipseModel) < 6) {
+		if (mergedLoc.end.line - mergedLoc.begin.line < 6) {
 				return makeNode("invalid", []);
 		}
 		

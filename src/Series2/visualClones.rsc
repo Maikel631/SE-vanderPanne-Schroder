@@ -46,6 +46,8 @@ public void openWindow(loc f) {
 
 /* Convert file path to loc variable. */
 public loc pathToLoc(str path) {
+	/* Convert spaces in path to "%20". */
+	path = replaceAll(path, " ", "%20");
 	return toLocation("file://<path>");
 }
 
