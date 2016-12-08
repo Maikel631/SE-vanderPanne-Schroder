@@ -8,7 +8,12 @@ import vis::KeySym;
 
 import util::Math;
 import util::Editors;
+import Traversal;
+import String;
+import Node;
+import Type;
 import List;
+import Map;
 import Set;
 import IO;
 
@@ -19,38 +24,89 @@ import lang::java::jdt::m3::Core;
 import lang::java::jdt::m3::AST;
 
 
-/* Workaround to open eclipse window. */
-public void openWindow(loc file, str msg) {
+/* Workaround to open Eclipse window. */
+public void openWindow(loc f) {
 	list[LineDecoration] ld = [];
 	try {
-		file.begin;
-		ld = [info(l, msg) | l <- [file.begin.line..file.end.line+1]];
+		f.begin;
+		ld = [info(l, "Here") | l <- [f.begin.line..f.end.line+1]];
 	}
-	catch: ld = [info(1, msg)];
+	catch: ld = [info(1, "Here")];
 	
-	edit(file, ld);
+	edit(f, ld);
+}
+
+/* Convert file path to loc variable. */
+public loc pathToLoc(str path) {
+	return toLocation("file://<path>");
 }
 
 public void main(M3 eclipseModel) {
-	list[loc] fileList = [convertToLoc(f, eclipseModel) | f <- files(eclipseModel)];
+	/* Retrieve clone classes, files affected by clones and their length. */
+	set[set[loc]] duplicateClasses = findDuplicatesAST(eclipseModel);
+	set[loc] filesWithClones = {pathToLoc(fileLoc.path) | fileLoc <- union(duplicateClasses)};
+	map[loc, real] fileLengths = (
+		fileLoc : toReal(size(readFileLines(fileLoc))) | fileLoc <- filesWithClones
+	);
 	
-	int numFiles = size(fileList);
-	list[int] lengthFiles = [size(readFileLines(f)) | f <- fileList];
+	/* Create boxes for all duplicates and map them per file. */
+	map[loc, list[node]] fileBoxMap = ();
+	for (dupClass <- duplicateClasses) {
+		randColor = color(colorNames()[arbInt(size(colorNames()))], 0.7);
+		
+		/* All boxes for each dupClass have the same color. */
+		for (dup <- dupClass) {
+			/* Determine the size and offset for displaying the box. */		
+			startOffset = dup.begin.line / fileLengths[pathToLoc(dup.path)];
+			lengthOffset = (dup.end.line - dup.begin.line) / fileLengths[pathToLoc(dup.path)];
+			
+			/* Create box for this duplicate, add it to the appropriate bin. */
+			fileBox = box(
+				fillColor(randColor),
+				align(0, startOffset),
+				vshrink(lengthOffset)
+			);
+
+			/* Add box to appropriate file 'bin'. */
+			if (pathToLoc(dup.path) in fileBoxMap)
+				fileBoxMap[pathToLoc(dup.path)] += fileBox;
+			else
+				fileBoxMap[pathToLoc(dup.path)] = [fileBox];
+		}
+	}
 	
-	real normalizer = toReal(max(lengthFiles));
-	list[real] heightBoxes = [height / normalizer | height <- lengthFiles];
-	real offsetWidth = 1.0 / toReal(numFiles - 1);
-	real widthBoxes = 1.0 / toReal(numFiles) - 0.005;
-	
+	/* Normalize the file lenghts, determine the boxes' heights and offsets. */
+	real normalizer = toReal(max([fileLengths[f] | f <- fileLengths]));
+	map[loc, real] heightBoxes = (f : fileLengths[f] / normalizer | f <- fileLengths);
+	real offsetWidth = 1.0 / toReal(size(fileLengths) - 1);
+	real widthBoxes = 1.0 / toReal(size(fileLengths)) - 0.005;
+
+	int i = 0;
 	boxes = [];
-	for (i <- [0..numFiles]) {
-		fileBox = box(
-		   onMouseUp(bool (int butnr, map[KeyModifier, bool] modifiers) {
-		       openWindow(fileList[i], "Here");
-		       return true;
-	       }),
-		   fillColor("red"), align(i * offsetWidth, 0), hshrink(widthBoxes), vshrink(heightBoxes[i]));
+	for (f <- fileBoxMap) {
+		nestedBoxes = reverse(fileBoxMap[f]);
+				
+		/* Create a fileBox which encompasses the duplicates boxes. */
+		fileBox = bbox(f, i, nestedBoxes, offsetWidth, widthBoxes, heightBoxes);
+		
+		i += 1;
 		boxes += fileBox;
 	}
+	
+	/* Render all fileBoxes which contain duplicate boxes. */
 	render(overlay(boxes));
+}
+
+public Figure bbox(loc f, int i, list[node] nestedBoxes, real offsetWidth, real widthBoxes, map[loc, real] heightBoxes) {
+	return box(
+		overlay(nestedBoxes),
+		fillColor("grey"),
+		align(i * offsetWidth, 0),
+		hshrink(widthBoxes),
+		vshrink(heightBoxes[f]),
+		onMouseUp(bool (int butnr, map[KeyModifier, bool] modifiers) {
+			openWindow(f);
+			return true;
+		})
+	);
 }

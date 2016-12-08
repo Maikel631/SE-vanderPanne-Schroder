@@ -170,7 +170,7 @@ public map[node, list[loc]] createTreeMap(set[Declaration] AST, M3 eclipseModel)
 	
 	top-down visit(AST) {
 		case node n:
-			treeMap = processNode(treeMap, n, eclipseModel);
+			treeMap = processNode(treeMap, n);
 		case list[node] n:
 			treeMap = processNodeList(treeMap, n, eclipseModel);
 	}
