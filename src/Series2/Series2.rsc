@@ -33,6 +33,8 @@ import lang::java::jdt::m3::AST;
 
 import Series2::trimCode;
 
+public loc writeLoc = |project://Software%20Evolution/src/Series2/|;
+
 public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) {
 	set[Declaration] AST = createAstsFromEclipseProject(eclipseModel.id, false);
 	if (detectType2 == true)
@@ -146,7 +148,11 @@ public set[set[loc]] getCloneClasses(rel[loc, loc] realPairs) {
 			}
 		}
 	}
-	return cloneClasses - subSetClasses;
+	
+	/* Write clone classes to file and return. */
+	finalClasses = cloneClasses - subSetClasses;
+	writeFile(writeLoc + "result", finalClasses);
+	return finalClasses;
 }
 
 
