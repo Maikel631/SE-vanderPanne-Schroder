@@ -169,17 +169,9 @@ public map[node, list[loc]] createTreeMap(set[Declaration] AST, M3 eclipseModel)
 	map[node, list[loc]] treeMap = ();
 	
 	top-down visit(AST) {
-		case Declaration n:
-			treeMap = processNode(treeMap, n);
-		case Expression n:
-			treeMap = processNode(treeMap, n);
-		case Statement n:
-			treeMap = processNode(treeMap, n);
-		case list[Declaration] n:
-			treeMap = processNodeList(treeMap, n, eclipseModel);
-		case list[Expression] n:
-			treeMap = processNodeList(treeMap, n, eclipseModel);
-		case list[Statement] n:
+		case node n:
+			treeMap = processNode(treeMap, n, eclipseModel);
+		case list[node] n:
 			treeMap = processNodeList(treeMap, n, eclipseModel);
 	}
 	//for (snippet <- treeMap)
@@ -195,7 +187,7 @@ public node createNodeFromList(list[node] nodeList, M3 eclipseModel) {
 		loc mergedLoc = mergeLocations(locStart, locEnd);
 		
 		/* Check if the merged location encompassed at least 6 LOC. */
-		if (countLOC(mergedLoc, eclipseModel) < 6)
+		if (size(readFileLines(mergedLoc)) < 6)
 			return makeNode("invalid", []);
 		
 		/* Create a node using the nodeList and location. */
@@ -230,14 +222,14 @@ public loc extractSrc (node n) {
 }
 
 public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNode) {
-	/* Skip subtrees smaller than 15 nodes. */
-	if (treeSize(curNode) < 10)
-		return treeMap;
 	annotations = getAnnotations(curNode);
 	
 	/* Skip nodes with no annotations, cast src to loc. */
 	if (!isEmpty(annotations) && "src" in annotations) {
 		if (loc location := annotations["src"]) {
+			if (size(readFileLines(location)) < 6)
+				return treeMap;
+
 			/* Not necessary; makes more visible. */
 			//curNode = cleanTree(curNode);
 			if (curNode in treeMap)
