@@ -51,17 +51,25 @@ public void main(M3 eclipseModel) {
 	
 	/* Create boxes for all duplicates and map them per file. */
 	map[loc, list[node]] fileBoxMap = ();
+	int classNum = 1;
+
 	for (dupClass <- duplicateClasses) {
-		randColor = color(colorNames()[arbInt(size(colorNames()))], 0.7);
+		randColor = color(colorNames()[arbInt(size(colorNames()))], 0.6);
 		
 		/* All boxes for each dupClass have the same color. */
 		for (dup <- dupClass) {
 			/* Determine the size and offset for displaying the box. */		
 			startOffset = dup.begin.line / fileLengths[pathToLoc(dup.path)];
 			lengthOffset = (dup.end.line - dup.begin.line) / fileLengths[pathToLoc(dup.path)];
-			
+
 			/* Create box for this duplicate, add it to the appropriate bin. */
-			fileBox = nestedbbox(dup, randColor, startOffset, lengthOffset);
+			fileBox = box(
+				fillColor(randColor),
+				align(0, startOffset),
+				vshrink(lengthOffset),
+				getMouseDownAction(dup),
+				getMouseOverBox(" Class: <classNum> - Clone found on lines <dup.begin.line> - <dup.end.line> ", bottom())
+			);
 
 			/* Add box to appropriate file 'bin'. */
 			if (pathToLoc(dup.path) in fileBoxMap)
@@ -69,6 +77,7 @@ public void main(M3 eclipseModel) {
 			else
 				fileBoxMap[pathToLoc(dup.path)] = [fileBox];
 		}
+		classNum += 1;
 	}
 	
 	/* Normalize the file lenghts, determine the boxes' heights and offsets. */
@@ -79,42 +88,46 @@ public void main(M3 eclipseModel) {
 
 	int i = 0;
 	boxes = [];
+	real infoBoxSize = 0.03;
 	for (f <- fileBoxMap) {
 		nestedBoxes = reverse(fileBoxMap[f]);
-				
 		/* Create a fileBox which encompasses the duplicates boxes. */
-		fileBox = bbox(f, i, nestedBoxes, offsetWidth, widthBoxes, heightBoxes);
+		fileBox = box(
+			overlay(nestedBoxes),
+			fillColor(gray(230)),
+			align(i * offsetWidth, infoBoxSize),
+			shrink(0.99, heightBoxes[f] - infoBoxSize),
+			getMouseDownAction(f)
+		);
 		
+		infoBox = box( text("File information", fontSize(5)),
+			fillColor("white"),
+			align(i * offsetWidth, 0),
+			shrink(0.99, infoBoxSize),
+		    vgap(2),
+		    getMouseDownAction(f),
+		    getMouseOverBox(" File information \n File: <f.path> \n Num clones found: <size(fileBoxMap[f])> ", center())
+		);
+		
+		fileBox = vcat([infoBox, fileBox]);
 		i += 1;
 		boxes += fileBox;
 	}
 	
 	/* Render all fileBoxes which contain duplicate boxes. */
-	render(overlay(boxes));
+	render(hcat(boxes));
 }
 
-public Figure bbox(loc f, int i, list[node] nestedBoxes, real offsetWidth, real widthBoxes, map[loc, real] heightBoxes) {
-	return box(
-		overlay(nestedBoxes),
-		fillColor("grey"),
-		align(i * offsetWidth, 0),
-		hshrink(widthBoxes),
-		vshrink(heightBoxes[f]),
-		onMouseUp(bool (int butnr, map[KeyModifier, bool] modifiers) {
-			openWindow(f);
-			return true;
-		})
-	);
+public FProperty getMouseDownAction(loc f) {
+	return onMouseUp(bool (int butnr, map[KeyModifier, bool] modifiers) {
+		openWindow(f);
+		return true;
+	});
 }
 
-public Figure nestedbbox(loc f, int randColor, real startOffset, real lengthOffset) {
-	return box(
-		fillColor(randColor),
-		align(0, startOffset),
-		vshrink(lengthOffset),
-		onMouseUp(bool (int butnr, map[KeyModifier, bool] modifiers) {
-			openWindow(f);
-			return true;
-		})
-	);
+public FProperty getMouseOverBox(str boxText, FProperty alignment) {
+	return (onMouseOver(box(
+			text(boxText, align(0,0)),
+		    alignment, vshrink(0.1), fillColor(rgb(251, 255, 147, 0.8))
+	)));
 }
