@@ -190,14 +190,9 @@ public node createNodeFromList(list[node] nodeList, M3 eclipseModel) {
 		loc mergedLoc = mergeLocations(locStart, locEnd);
 		
 		/* Check if the merged location encompassed at least 6 LOC. */
-<<<<<<< HEAD
-		if (size(readFileLines(mergedLoc)) < 6)
-			return makeNode("invalid", []);
-=======
 		if (mergedLoc.end.line - mergedLoc.begin.line < 6 || countLOC(mergedLoc, eclipseModel) < 6) {
 				return makeNode("invalid", []);
 		}
->>>>>>> 71d48e410e152b485fb71fd161b474946525b0df
 		
 		/* Create a node using the nodeList and location. */
 		newNode = makeNode("node", nodeList);
@@ -231,26 +226,14 @@ public loc extractSrc (node n) {
 }
 
 public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNode) {
-<<<<<<< HEAD
-=======
-	/* Skip subtrees smaller than 15 nodes. */
-	//if (treeSize(curNode) < 10)
-	//	return treeMap;
->>>>>>> 71d48e410e152b485fb71fd161b474946525b0df
 	annotations = getAnnotations(curNode);
 	
 	/* Skip nodes with no annotations, cast src to loc. */
 	if (!isEmpty(annotations) && "src" in annotations) {
 		if (loc location := annotations["src"]) {
-<<<<<<< HEAD
-			if (size(readFileLines(location)) < 6)
-				return treeMap;
-
-=======
 			if (location.end.line - location.begin.line < 6)
 				return treeMap;
 		
->>>>>>> 71d48e410e152b485fb71fd161b474946525b0df
 			/* Not necessary; makes more visible. */
 			//curNode = cleanTree(curNode);
 			if (curNode in treeMap)
