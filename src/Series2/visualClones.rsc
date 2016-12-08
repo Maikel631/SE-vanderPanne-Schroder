@@ -6,6 +6,7 @@ import vis::Figure;
 import vis::Render;
 import vis::KeySym;
 
+import util::Eval;
 import util::Math;
 import util::Editors;
 import Traversal;
@@ -17,12 +18,19 @@ import Map;
 import Set;
 import IO;
 
-
 import lang::java::m3::AST;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 import lang::java::jdt::m3::AST;
 
+/* Read in and evaluate the duplicate classes. */
+public set[set[loc]] readDuplicates() {
+	contents = readFile(|project://Software%20Evolution/src/Series2/result|);
+	contents = replaceAll(contents, " ", "%20");
+	visit (eval(contents)) {
+		case set[set[loc]] a: return a;
+	};
+}
 
 /* Workaround to open Eclipse window. */
 public void openWindow(loc f) {
@@ -38,12 +46,14 @@ public void openWindow(loc f) {
 
 /* Convert file path to loc variable. */
 public loc pathToLoc(str path) {
+	/* Convert spaces in path to "%20". */
+	path = replaceAll(path, " ", "%20");
 	return toLocation("file://<path>");
 }
 
-public void main(M3 eclipseModel) {
+public void visualizeClones() {
 	/* Retrieve clone classes, files affected by clones and their length. */
-	set[set[loc]] duplicateClasses = findDuplicatesAST(eclipseModel);
+	set[set[loc]] duplicateClasses = readDuplicates();
 	set[loc] filesWithClones = {pathToLoc(fileLoc.path) | fileLoc <- union(duplicateClasses)};
 	map[loc, real] fileLengths = (
 		fileLoc : toReal(size(readFileLines(fileLoc))) | fileLoc <- filesWithClones
