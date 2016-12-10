@@ -69,23 +69,18 @@ public lrel[loc, loc] getClonePairs(map[node, list[loc]] treeMap) {
 			for (loc locB <- treeMap[duplicateCode], locA != locB) {
 				/* Create the keys to sort all the file offset on, 
 				 * so the pairs can be merged more easily. 
-				 *
-		         * You want to sort the file offset from smallest to largest,
-		         * but you want to sort the file lengths from largest to smallest.
+				 */
+				 
+				/* Make sure when covering multiple file pairs, 
+				 * the first index is always the same. Thus, swap if necessary. */
+				if (locA.path < locB.path)
+					<locB, locA> = <locA, locB>;
+				
+		        /* You want to sort the file offset from small to large,
+		         * but you want to sort the file lengths from large to small.
 		         * Workaround: use as second sortKey: offset minus the length. 
 				 */
-				keyA = <locA.offset, locA.offset - locA.length>;
-				keyB = <locB.offset, locB.offset - locB.length>;
-				if (<keyA, locA, locB> notin clonePairs &&
-				    <keyB, locB, locA> notin clonePairs) {
-				
-					/* Make sure when covering multiple file pairs, 
-					 * the first index is always the same. Thus, swap if necessary. */
-					if (locA.path < locB.path)
-						clonePairs += <keyA, locA, locB>;
-					else
-						clonePairs += <keyB, locB, locA>;
-				}
+				clonePairs += <<locA.offset, locA.offset - locA.length>, locA, locB>;
 			}
 		}
 	}
@@ -110,7 +105,7 @@ public rel[loc, loc] getMergedPairs(lrel[loc, loc] clonePairs) {
 	for (pairA <- clonePairs) {
 		for (pairB <- clonePairs, pairA != pairB) {
 			/* Some iterations can be skipped. */
-			if (pairB in checked || pairB in containedPairs)
+			if (checked[pairB]? || containedPairs[pairB]?)
 				continue;
 			
 			/* As everything is sorted, you can easily check if it is an contained pair.
@@ -213,30 +208,25 @@ public map[node, list[loc]] createTreeMap(set[Declaration] AST, M3 eclipseModel)
 			treeMap = processNode(treeMap, n);
 		case list[node] n:
 			treeMap = processNodeList(treeMap, n, eclipseModel);
-	}
-	//for (snippet <- treeMap)
-	//	println(treeMap[snippet]);
-		
+	}	
 	return treeMap;
 }
 
 public node createNodeFromList(list[node] nodeList, M3 eclipseModel) {
 	if (isEmpty(nodeList))
 		return makeNode("invalid", []);
-	
+
 	/* Extract start and end node location. */
 	if (loc locStart := getAnnotations(nodeList[0])["src"] &&
 		loc locEnd := getAnnotations(nodeList[-1])["src"]) {
-		loc mergedLoc = mergeLocations(locStart, locEnd);
-		
+
 		/* Check if the merged location encompassed at least 'cloneSize' LOC. */
-		if (mergedLoc.end.line - mergedLoc.begin.line < cloneSize) {
-				return makeNode("invalid", []);
-		}
-		
+		if (locEnd.end.line - locStart.begin.line < cloneSize)
+			return makeNode("invalid", []);
+
 		/* Create a node using the nodeList and location. */
 		newNode = makeNode("node", nodeList);
-		return setAnnotations(newNode, ("src": mergedLoc));
+		return setAnnotations(newNode, ("src": mergeLocations(locStart, locEnd)));
 	}
 	return makeNode("invalid", []);
 }
@@ -332,17 +322,17 @@ public int treeSize(node curNode) {
  */
 public list[list[node]] sliceLists(list[node] inputList) {	
 	int sizeList = size(inputList);
-	set[list[node]] sliceList = {};
+	list[list[node]] sliceList = [];
 	for (int i <- [0..sizeList]) {
 		for (int j <- [i..sizeList + 1], i != j) {
 			/* Check if the current size of the slice is larger then 1, as single nodes are already
-			 * added to the tree map. Moreover, the whole input list has to be ignored. 
+			 * added to the tree map.
 			 */
 			if (j - i > 1 && j - i != sizeList)
-				sliceList += inputList[i..j]; 
+				sliceList += [inputList[i..j]]; 
 		}
 	}
-	return toList(sliceList);
+	return sliceList;
 }
 
 public loc mergeLocations(loc locFileA, loc locFileB) {	

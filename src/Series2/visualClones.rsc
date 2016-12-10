@@ -77,6 +77,7 @@ public void visualizeClones() {
 				fillColor(randColor),
 				align(0, startOffset),
 				vshrink(lengthOffset),
+				lineColor(randColor),
 				getMouseDownAction(dup),
 				getMouseOverBox(" Class: <classNum> - Clone found on lines <dup.begin.line> - <dup.end.line> ", bottom())
 			);
@@ -107,11 +108,13 @@ public void visualizeClones() {
 			fillColor(gray(230)),
 			align(i * offsetWidth, infoBoxSize),
 			shrink(0.99, heightBoxes[f] - infoBoxSize),
-			getMouseDownAction(f)
+			getMouseDownAction(f),
+			lineColor(gray(200))
 		);
 		
 		infoBox = box( text("File information", fontSize(5)),
 			fillColor("white"),
+			lineColor(rgb(202, 220, 249)),
 			align(i * offsetWidth, 0),
 			shrink(0.99, infoBoxSize),
 		    vgap(2),
