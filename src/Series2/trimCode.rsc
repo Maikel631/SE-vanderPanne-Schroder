@@ -39,7 +39,7 @@ public int getVolume(eclipseModel) {
 	return sum([countLOC(srcFile, eclipseModel) | srcFile <- srcFiles]);
 }
 
-public int countLOC(location, eclipseModel) {
+public int countLOC(loc location, M3 eclipseModel) {
 	/* If the location is not a file location, translate it. */
 	if (location.scheme != "java+compilationUnit" && location.scheme != "file")
 		location = convertToLoc(location, eclipseModel);
@@ -83,3 +83,4 @@ public str trimCode(location, eclipseModel) {
  	    case /\s*\n/ => "\n"
     }
 }
+
