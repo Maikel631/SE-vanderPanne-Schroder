@@ -191,8 +191,11 @@ public node createNodeFromList(list[node] nodeList, M3 eclipseModel) {
 		return makeNode("invalid", []);
 	
 	/* Extract start and end node location. */
-	if (loc locStart := getAnnotations(nodeList[0])["src"] &&
-		loc locEnd := getAnnotations(nodeList[-1])["src"]) {
+	if ("src" in getAnnotations(nodeList[0]) &&
+		loc locStart := getAnnotations(nodeList[0])["src"] &&
+		"src" in getAnnotations(nodeList[-1]) &&
+		loc locEnd := getAnnotations(nodeList[-1])["src"])
+	{
 		loc mergedLoc = mergeLocations(locStart, locEnd);
 		
 		/* Check if the merged location encompassed at least 6 LOC. */
