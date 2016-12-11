@@ -36,6 +36,30 @@ import Series2::trimCode;
 public loc writeLoc = |project://Software%20Evolution/src/Series2/|;
 public int cloneSize = 6;
 
+public map[str, int] calcStats(set[set[loc]] cloneClasses, M3 eclipseModel) {
+	cloneStats = (
+		"numClones": 0, "numCloneClasses": 0,
+		"bigClone": 0, "bigCloneClass": 0
+	);
+
+	/* Iterate over all clones to determine statistics. */
+	for (cloneClass <- cloneClasses) {
+		cloneClassSize = 0;
+	
+		for (clone <- cloneClass) {
+			cloneStats["numClones"] += 1;
+			cloneSize = countLOC(clone, eclipseModel);
+			cloneClassSize += cloneSize;
+			if (cloneSize > cloneStats["bigClone"])
+				cloneStats["bigClone"] = cloneSize;
+		}
+		cloneStats["numCloneClasses"] += 1;
+		if (cloneClassSize > cloneStats["bigCloneClass"])
+			cloneStats["bigCloneClass"] = cloneClassSize;
+	}
+	return cloneStats;
+}
+
 public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) {
 	set[Declaration] AST = createAstsFromEclipseProject(eclipseModel.id, false);
 	if (detectType2 == true)
@@ -51,7 +75,11 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
 	
 	/* Get the clone classes and write those to file and return the classes. */
 	set[set[loc]] cloneClasses = getCloneClasses(mergedClonePairs, eclipseModel);
+	cloneStats = calcStats(cloneClasses, eclipseModel);
 	writeFile(writeLoc + "result", "<cloneClasses>;");
+	
+	println(cloneStats);
+	
 	return cloneClasses;
 }
 
