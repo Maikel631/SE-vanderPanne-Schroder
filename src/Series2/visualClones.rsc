@@ -100,9 +100,38 @@ public void visualizeClones() {
 	
 	list[int] fileDupCounts = calculateCodeDupLines(fileDups);
 	list[Figure] boxes = createFileBoxes(fileBoxMap, fileLengths, fileDupCounts);
-	 
+	
+	map[str, int] vars = ("bla" : 3, "bla123": 20, "asdhkj": 30);
+	Figure configurationsMenu = createConfigMenu(vars);
+	
 	/* Render all fileBoxes which contain duplicate boxes. */
-	render(hcat(boxes));
+	render(hcat([configurationsMenu] + boxes, hgap(2)));
+}
+
+public Figure createConfigMenu(map[str, int] vars) {
+	
+	Figure header1 = text("  Configurations clone detector ", fontSize(16), top());
+	Figure headerSep = box(vsize(4), fillColor(gray(220)), lineColor(gray(220)), vresizable(false));
+	Figure lineSep = box(vsize(3), fillColor(gray(200)), lineColor("white"), vresizable(false));
+	
+	str entered = "";
+	Figure projectField = vcat([text("Project name: ", left()), textfield("", void(str s) {entered = s; println("<s>");})], vsize(80), vresizable(false), left());
+	
+	str curSelect = "1";
+	Figure cloneType = vcat([text("Clone type: ", left(), top()), choice(["1", "2"], void (str s) {curSelect = s; println("<s>"); },left(), size(100, 60))], resizable(false), left());
+	
+	int n = 1;
+	Figure startButton = button("Start clone detection", void() {n += 1;}, vresizable(false), vsize(50));
+	
+	list[Figure] texts = [header1, headerSep, projectField, cloneType, startButton, lineSep];
+	for (key <- vars) {
+		texts += text(" <key> : <vars[key]> ", left(), fontSize(12));
+	}
+	texts += lineSep;
+	
+	int sizeBox = 50 + 10 * (size(texts) - 1);
+	mainBox = box(vcat(texts), size(200, sizeBox), top(), vgap(2), resizable(false, false), lineColor(gray(200)));
+	return mainBox;
 }
 
 public list[int] calculateCodeDupLines(map[loc, list[loc]] fileDups) {
@@ -153,14 +182,14 @@ public list[Figure] createFileBoxes(map[loc, list[node]] fileBoxMap, map[loc, re
 
 	int i = 0;
 	boxes = [];
-	real infoBoxSize = 0.01;
+	real infoBoxSize = 0.1;
 	for (f <- fileBoxMap) {
 		nestedBoxes = reverse(fileBoxMap[f]);
 		/* Create a fileBox which encompasses the duplicates boxes. */
 		fileBox = box(
 			overlay(nestedBoxes),
 			size(100, round(fileLengths[f]) * 1.2),
-			vresizable(false),
+			//vresizable(false),
 			fillColor(gray(230)),
 			align(i * offsetWidth, infoBoxSize),
 			shrink(0.99, heightBoxes[f] - infoBoxSize),
