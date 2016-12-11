@@ -34,6 +34,7 @@ import lang::java::jdt::m3::AST;
 import Series2::trimCode;
 
 public loc writeLoc = |project://Software%20Evolution/src/Series2/|;
+public int cloneSize = 6;
 
 public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) {
 	set[Declaration] AST = createAstsFromEclipseProject(eclipseModel.id, false);
@@ -42,8 +43,23 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
 	
 	/* Top-bottom visit of all files. */
 	map[node, list[loc]] treeMap = createTreeMap(AST, eclipseModel);
-	count = otherCount = 0;
+
+	/* From the treeMap, create a list of relations with the clonePairs. 
+	 * Afterwards, try to merge the clone pairs as all are of the */
+	lrel[loc, loc] clonePairs = getClonePairs(treeMap);
+	rel[loc, loc] mergedClonePairs = getMergedPairs(clonePairs);
 	
+	/* Get the clone classes and write those to file and return the classes. */
+	set[set[loc]] cloneClasses = getCloneClasses(mergedClonePairs, eclipseModel);
+	writeFile(writeLoc + "result", "<cloneClasses>;");
+	return cloneClasses;
+}
+
+/* Create from the tree map a list of small clone pairs that can be merged in a later step
+ * to larger clone pairs. This way, partly overlapping clones will always be detected.
+ * By sorting everything, the merging is optimized.
+ */
+public lrel[loc, loc] getClonePairs(map[node, list[loc]] treeMap) {
 	rel[tuple[int, int], loc, loc] clonePairs = {};
 	for (duplicateCode <- treeMap) {
 		if (size(treeMap[duplicateCode]) < 2)
@@ -53,40 +69,43 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
 			for (loc locB <- treeMap[duplicateCode], locA != locB) {
 				/* Create the keys to sort all the file offset on, 
 				 * so the pairs can be merged more easily. 
-				 *
-		         * You want to sort the file offset from smallest to largest,
-		         * but you want to sort the file lengths from largest to smallest.
+				 */
+				 
+				/* Make sure when covering multiple file pairs, 
+				 * the first index is always the same. Thus, swap if necessary. */
+				if (locA.path < locB.path)
+					<locB, locA> = <locA, locB>;
+				
+		        /* You want to sort the file offset from small to large,
+		         * but you want to sort the file lengths from large to small.
 		         * Workaround: use as second sortKey: offset minus the length. 
 				 */
-				keyA = <locA.offset, locA.offset - locA.length>;
-				keyB = <locB.offset, locB.offset - locB.length>;
-				if (<keyA, locA, locB> notin clonePairs &&
-				    <keyB, locB, locA> notin clonePairs) {
-				
-					/* Make sure when covering multiple file pairs, 
-					 * the first index is always the same. Thus, swap if necessary. */
-					if (locA.path < locB.path)
-						clonePairs += <keyA, locA, locB>;
-					else
-						clonePairs += <keyB, locB, locA>;
-				}
+				clonePairs += <<locA.offset, locA.offset - locA.length>, locA, locB>;
 			}
 		}
 	}
 	
 	/* Sort on the keys created above and create a final sorted list of file relations. */
-	lrel[loc, loc] sortedPairs = [<locA, locB> | <_, locA, locB> <- sort(clonePairs)];
+	return [<locA, locB> | <_, locA, locB> <- sort(clonePairs)];
+}
 
+
+/* Merge the smaller sorted clone pairs in the larger ones, 
+ * as it is sorted on file offset, then size of the clone and its name,
+ * larger clones can easily be merged by checking if the pairA is
+ * the parent of pairB. If so, pairB can be discarded. 
+ */
+public rel[loc, loc] getMergedPairs(lrel[loc, loc] clonePairs) {
 	/* Optimization: use maps. */
-	rel[loc, loc] realPairs = {};	
+	rel[loc, loc] mergedClonePairs = {};	
 	map[tuple[loc, loc], bool] containedPairs = ();	
 	map[tuple[loc, loc], bool] checked = ();
 	
 	/* Merge each sorted clonePair if it is the parent of the other.  */
-	for (pairA <- sortedPairs) {
-		for (pairB <- sortedPairs, pairA != pairB) {
+	for (pairA <- clonePairs) {
+		for (pairB <- clonePairs, pairA != pairB) {
 			/* Some iterations can be skipped. */
-			if (pairB in checked || pairB in containedPairs)
+			if (checked[pairB]? || containedPairs[pairB]?)
 				continue;
 			
 			/* As everything is sorted, you can easily check if it is an contained pair.
@@ -94,38 +113,38 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
 			 * parent of B.
 			 */
 			if (isParentTree(pairA[0], pairB[0]) && isParentTree(pairA[1], pairB[1])) {
-				realPairs += pairA;
+				mergedClonePairs += pairA;
 				containedPairs[pairB] = true;
 			}
 			else { /* Found likely a clone pair that is probably not part of a parent clone: thus add it. */
-				realPairs += pairB;
+				mergedClonePairs += pairB;
 			}
 		}
 		checked[pairA] = true;
 	}
 
-	/* Now all containedPairs are known, remove the likely pairs which were part of a parent clone. */
-	realPairs -= domain(containedPairs);
-
-	return getCloneClasses(realPairs);
+	/* Now all containedPairs are known, remove the likely pairs which were part of a parent clone.
+	 * Use the domain, as containedPairs is a map : ClonePair -> bool.
+	 */
+	return (mergedClonePairs - domain(containedPairs));
 }
 
+
 /* TODO: It should be possible to get this a bit nicer... */
-public set[set[loc]] getCloneClasses(rel[loc, loc] realPairs) {
-	set[loc] indices = domain(realPairs) + range(realPairs);
+public set[set[loc]] getCloneClasses(rel[loc, loc] clonePairs, M3 eclipseModel) {
+	set[loc] indices = domain(clonePairs) + range(clonePairs);
 	
 	set[set[loc]] cloneClasses = {};
 	for (i <- indices) {
 		/* Define set of clone locations */
-		set[loc] cloneClass = {i} + realPairs[i];
+		set[loc] cloneClass = {i} + clonePairs[i];
 		
 		for (j <- indices, i != j) {
-			/* For the set of clone locations,
-			 * check if you can find 
-			 * the same location in the ranges, 
-			 * if it is, j is part of the cloneClass;
+			/* For the set of clone locations check if you can find 
+			 * the same location in the ranges, if it is found,
+			 * j is part of the cloneClass.
 			 */
-			for (cloneLoc <- realPairs[j]) { 
+			for (cloneLoc <- clonePairs[j]) { 
 				if (cloneLoc == i) {
 					cloneClass += j;
 					break;
@@ -149,9 +168,19 @@ public set[set[loc]] getCloneClasses(rel[loc, loc] realPairs) {
 		}
 	}
 	
-	/* Write clone classes to file and return. */
-	finalClasses = cloneClasses - subSetClasses;
-	writeFile(writeLoc + "result", "<finalClasses>;");
+	/* Now all final clone classes are defined. However, it is not sure if all
+	 * clones are larger than 'cloneSize' lines (which is a slow operation). Now, we
+	 * only have to check one of the clones per class to be larger than 'cloneSize'.
+	 */
+	set[set[loc]] mergedClasses = cloneClasses - subSetClasses;
+	set[set[loc]] finalClasses = {};
+	for (cloneClass <- mergedClasses) {
+		loc clone = toList(cloneClass)[0];	
+		if (countLOC(clone, eclipseModel) >= cloneSize) {
+			finalClasses += {cloneClass};
+		}
+	}
+	
 	return finalClasses;
 }
 
@@ -179,33 +208,27 @@ public map[node, list[loc]] createTreeMap(set[Declaration] AST, M3 eclipseModel)
 			treeMap = processNode(treeMap, n);
 		case list[node] n:
 			treeMap = processNodeList(treeMap, n, eclipseModel);
-	}
-	//for (snippet <- treeMap)
-	//	println(treeMap[snippet]);
-		
+	}	
 	return treeMap;
 }
 
 public node createNodeFromList(list[node] nodeList, M3 eclipseModel) {
 	if (isEmpty(nodeList))
 		return makeNode("invalid", []);
-	
+
 	/* Extract start and end node location. */
 	if ("src" in getAnnotations(nodeList[0]) &&
 		loc locStart := getAnnotations(nodeList[0])["src"] &&
 		"src" in getAnnotations(nodeList[-1]) &&
 		loc locEnd := getAnnotations(nodeList[-1])["src"])
 	{
-		loc mergedLoc = mergeLocations(locStart, locEnd);
-		
-		/* Check if the merged location encompassed at least 6 LOC. */
-		if (mergedLoc.end.line - mergedLoc.begin.line < 6) {
-				return makeNode("invalid", []);
-		}
-		
+		/* Check if the merged location encompassed at least 'cloneSize' LOC. */
+		if (locEnd.end.line - locStart.begin.line < cloneSize)
+			return makeNode("invalid", []);
+
 		/* Create a node using the nodeList and location. */
 		newNode = makeNode("node", nodeList);
-		return setAnnotations(newNode, ("src": mergedLoc));
+		return setAnnotations(newNode, ("src": mergeLocations(locStart, locEnd)));
 	}
 	return makeNode("invalid", []);
 }
@@ -240,7 +263,7 @@ public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNo
 	/* Skip nodes with no annotations, cast src to loc. */
 	if (!isEmpty(annotations) && "src" in annotations) {
 		if (loc location := annotations["src"]) {
-			if (location.end.line - location.begin.line < 6)
+			if (location.end.line - location.begin.line < cloneSize)
 				return treeMap;
 		
 			/* Not necessary; makes more visible. */
@@ -259,12 +282,10 @@ public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNo
 //	return (isParentTree(srcA, srcB) || isOverlapping(srcA, srcB));
 //}
 
-/* Is 'a' a subtree of 'b'? */
-public bool isParentTree(loc srcA, loc srcB) {
-	endA = srcA.offset + srcA.length;
-	endB = srcB.offset + srcB.length;
-	
-	if (srcA.path == srcB.path && srcA.offset <= srcB.offset && endB <= endA)
+/* Is 'b' a subtree of 'a', thus it parent? */
+public bool isParentTree(loc srcA, loc srcB) {	
+	if (srcA.path == srcB.path && (srcA.offset <= srcB.offset && 
+	                               srcB.offset + srcB.length <= srcA.offset + srcA.length))
 		return true;
 	return false;
 }
@@ -302,19 +323,18 @@ public int treeSize(node curNode) {
  * However, clone merging has to be changed significantly. Check how.
  */
 public list[list[node]] sliceLists(list[node] inputList) {	
-	sizeList = size(inputList);
-	set[list[node]] sliceList = {};
+	int sizeList = size(inputList);
+	list[list[node]] sliceList = [];
 	for (int i <- [0..sizeList]) {
-		for (int j <- [i..sizeList + 1]) {
-			if (i == j)
-				continue;
-			list[node] slice = inputList[i..j];
-			int sliceSize = size(slice);
-			if (sliceSize > 1 && sliceSize != size(inputList))
-				sliceList += slice; 
+		for (int j <- [i..sizeList + 1], i != j) {
+			/* Check if the current size of the slice is larger then 1, as single nodes are already
+			 * added to the tree map.
+			 */
+			if (j - i > 1 && j - i != sizeList)
+				sliceList += [inputList[i..j]]; 
 		}
 	}
-	return toList(sliceList);
+	return sliceList;
 }
 
 public loc mergeLocations(loc locFileA, loc locFileB) {	

@@ -16,6 +16,7 @@ import Type;
 import List;
 import Map;
 import Set;
+import Relation;
 import IO;
 
 import lang::java::m3::AST;
@@ -60,7 +61,8 @@ public void visualizeClones() {
 	);
 	
 	/* Create boxes for all duplicates and map them per file. */
-	map[loc, list[node]] fileBoxMap = ();
+	map[loc, list[Figure]] fileBoxMap = ();
+	map[loc, list[loc]] fileDups = ();
 	int classNum = 1;
 
 	for (dupClass <- duplicateClasses) {
@@ -77,19 +79,72 @@ public void visualizeClones() {
 				fillColor(randColor),
 				align(0, startOffset),
 				vshrink(lengthOffset),
+				lineColor(randColor),
 				getMouseDownAction(dup),
-				getMouseOverBox(" Class: <classNum> - Clone found on lines <dup.begin.line> - <dup.end.line> ", bottom())
+				getMouseOverBox(" Class: <classNum> - Clone found on lines <dup.begin.line> - <dup.end.line> Size: <dup.end.line - dup.begin.line> ", bottom())
 			);
 
 			/* Add box to appropriate file 'bin'. */
-			if (pathToLoc(dup.path) in fileBoxMap)
-				fileBoxMap[pathToLoc(dup.path)] += fileBox;
-			else
-				fileBoxMap[pathToLoc(dup.path)] = [fileBox];
+			loc dupKey = pathToLoc(dup.path);
+			if (dupKey in fileBoxMap) {
+				fileBoxMap[dupKey] += fileBox;
+				fileDups[dupKey] += dup;
+			}
+			else {
+				fileBoxMap[dupKey] = [fileBox];
+				fileDups[dupKey] = [dup];
+			}
 		}
 		classNum += 1;
 	}
 	
+	list[int] fileDupCounts = calculateCodeDupLines(fileDups);
+	list[Figure] boxes = createFileBoxes(fileBoxMap, fileLengths, fileDupCounts);
+	 
+	/* Render all fileBoxes which contain duplicate boxes. */
+	render(hcat(boxes));
+}
+
+public list[int] calculateCodeDupLines(map[loc, list[loc]] fileDups) {
+	 list[int] fileDupCounts = [];
+	 for (f <- fileDups) {
+	 	rel[int, int] temp = {<dup.begin.line, dup.end.line> | dup <- fileDups[f]};
+	 	/* Merge the file intervals and sum the difference between them to get the total
+	 	 * number of duplicate lines per file. 
+	 	 */
+	 	println(mergeIntervals(temp));
+	 	fileDupCounts += sum([endF - startF |<startF, endF> <- mergeIntervals(temp)]);
+	 }
+	 return fileDupCounts;
+}
+
+/* Merge a list of integer intervals to one single interval list
+ * Based on codereview.stackexchange.com/questions/69242 
+ */
+public lrel[int, int] mergeIntervals(rel[int,int] intervals) {
+	lrel[int, int] mergedIntervals = [];
+	/* Sort all the intervals, so the first index will always be the smallest. */
+	lrel[int, int] sortedIntervals = sort(intervals);
+	
+	mergedIntervals += sortedIntervals[0];
+	for (higher <- sortedIntervals[1..]) {
+		tuple[int, int] lower = mergedIntervals[-1];
+		
+		if (higher[0] <= lower[1]) {
+			int upp = max(lower[1], higher[1]);
+			/* Replace last element from list to merged one.  */
+			mergedIntervals = delete(mergedIntervals, size(mergedIntervals) - 1);
+			mergedIntervals += <lower[0], upp>;
+		}
+		else {
+			if (higher notin mergedIntervals)
+				mergedIntervals += higher;
+		}
+	}
+	return mergedIntervals;
+}
+
+public list[Figure] createFileBoxes(map[loc, list[node]] fileBoxMap, map[loc, real] fileLengths, list[int] fileDupCounts) {
 	/* Normalize the file lenghts, determine the boxes' heights and offsets. */
 	real normalizer = toReal(max([fileLengths[f] | f <- fileLengths]));
 	map[loc, real] heightBoxes = (f : fileLengths[f] / normalizer | f <- fileLengths);
@@ -98,34 +153,43 @@ public void visualizeClones() {
 
 	int i = 0;
 	boxes = [];
-	real infoBoxSize = 0.03;
+	real infoBoxSize = 0.01;
 	for (f <- fileBoxMap) {
 		nestedBoxes = reverse(fileBoxMap[f]);
 		/* Create a fileBox which encompasses the duplicates boxes. */
 		fileBox = box(
 			overlay(nestedBoxes),
+			size(100, round(fileLengths[f]) * 1.2),
+			vresizable(false),
 			fillColor(gray(230)),
 			align(i * offsetWidth, infoBoxSize),
 			shrink(0.99, heightBoxes[f] - infoBoxSize),
-			getMouseDownAction(f)
+			getMouseDownAction(f),
+			lineColor(gray(200))
 		);
 		
-		infoBox = box( text("File information", fontSize(5)),
+		str fileName = intercalate("/", split("/", f.path)[-3..]);;
+		str mouseOverText = " File: <fileName> \n";
+		mouseOverText += " Length: <toInt(fileLengths[f])> lines \n";
+		mouseOverText += " Num clones found: <size(fileBoxMap[f])> \n";
+		mouseOverText += " Number of clone lines: <fileDupCounts[i]> ";
+		
+		infoBox = box( text("File information", fontSize(8)),
 			fillColor("white"),
+			size(100, 20),
+			lineColor(rgb(202, 220, 249)),
 			align(i * offsetWidth, 0),
 			shrink(0.99, infoBoxSize),
 		    vgap(2),
 		    getMouseDownAction(f),
-		    getMouseOverBox(" File information \n File: <f.path> \n Num clones found: <size(fileBoxMap[f])> ", center())
+		    getMouseOverBox(mouseOverText, center())
 		);
 		
 		fileBox = vcat([infoBox, fileBox]);
 		i += 1;
 		boxes += fileBox;
 	}
-	
-	/* Render all fileBoxes which contain duplicate boxes. */
-	render(hcat(boxes));
+	return boxes;
 }
 
 public FProperty getMouseDownAction(loc f) {
