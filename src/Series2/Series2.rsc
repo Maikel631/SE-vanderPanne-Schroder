@@ -34,30 +34,16 @@ import lang::java::jdt::m3::AST;
 import Series2::trimCode;
 
 public loc writeLoc = |project://Software%20Evolution/src/Series2/|;
+
+/* Getters and setters for clone detection. */
 public int cloneSize = 6;
 
-public map[str, int] calcStats(set[set[loc]] cloneClasses, M3 eclipseModel) {
-	cloneStats = (
-		"numClones": 0, "numCloneClasses": 0,
-		"bigClone": 0, "bigCloneClass": 0
-	);
+public int getCloneSize() { 
+	return cloneSize; 
+}
 
-	/* Iterate over all clones to determine statistics. */
-	for (cloneClass <- cloneClasses) {
-		cloneClassSize = 0;
-	
-		for (clone <- cloneClass) {
-			cloneStats["numClones"] += 1;
-			cloneSize = countLOC(clone, eclipseModel);
-			cloneClassSize += cloneSize;
-			if (cloneSize > cloneStats["bigClone"])
-				cloneStats["bigClone"] = cloneSize;
-		}
-		cloneStats["numCloneClasses"] += 1;
-		if (cloneClassSize > cloneStats["bigCloneClass"])
-			cloneStats["bigCloneClass"] = cloneClassSize;
-	}
-	return cloneStats;
+public void setCloneSize(int newSize) { 
+	cloneSize = newSize; 
 }
 
 public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) {
@@ -75,7 +61,6 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
 	
 	/* Get the clone classes and write those to file and return the classes. */
 	set[set[loc]] cloneClasses = getCloneClasses(mergedClonePairs, eclipseModel);
-	cloneStats = calcStats(cloneClasses, eclipseModel);
 	writeFile(writeLoc + "result", "<cloneClasses>;");
 	
 	println(cloneStats);
@@ -310,7 +295,7 @@ public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNo
 //	return (isParentTree(srcA, srcB) || isOverlapping(srcA, srcB));
 //}
 
-/* Is 'b' a subtree of 'a', thus it parent? */
+/* Is 'b' a subtree of 'a', thus its parent? */
 public bool isParentTree(loc srcA, loc srcB) {	
 	if (srcA.path == srcB.path && (srcA.offset <= srcB.offset && 
 	                               srcB.offset + srcB.length <= srcA.offset + srcA.length))

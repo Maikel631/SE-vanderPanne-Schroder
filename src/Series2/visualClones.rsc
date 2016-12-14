@@ -2,6 +2,8 @@ module Series2::visualClones
 
 import Series2::Series2;
 import Series2::trimCode;
+import Series2::visUtilities;
+import Series2::configMenu;
 import vis::Figure;
 import vis::Render;
 import vis::KeySym;
@@ -24,6 +26,7 @@ import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 import lang::java::jdt::m3::AST;
 
+
 /* Read in and evaluate the duplicate classes. */
 public set[set[loc]] readDuplicates() {
 	contents = readFile(|project://Software%20Evolution/src/Series2/result|);
@@ -31,18 +34,6 @@ public set[set[loc]] readDuplicates() {
 	visit (eval(contents)) {
 		case set[set[loc]] a: return a;
 	};
-}
-
-/* Workaround to open Eclipse window. */
-public void openWindow(loc f) {
-	list[LineDecoration] ld = [];
-	try {
-		f.begin;
-		ld = [info(l, "Here") | l <- [f.begin.line..f.end.line+1]];
-	}
-	catch: ld = [info(1, "Here")];
-	
-	edit(f, ld);
 }
 
 /* Convert file path to loc variable. */
@@ -63,6 +54,7 @@ public void visualizeClones() {
 	/* Create boxes for all duplicates and map them per file. */
 	map[loc, list[Figure]] fileBoxMap = ();
 	map[loc, list[loc]] fileDups = ();
+	map[int, tuple[loc, int, int]] cloneExamples = ();
 	int classNum = 1;
 
 	for (dupClass <- duplicateClasses) {
@@ -93,6 +85,7 @@ public void visualizeClones() {
 			else {
 				fileBoxMap[dupKey] = [fileBox];
 				fileDups[dupKey] = [dup];
+				cloneExamples[classNum] = <dup, 3, randColor>;
 			}
 		}
 		classNum += 1;
@@ -101,38 +94,14 @@ public void visualizeClones() {
 	list[int] fileDupCounts = calculateCodeDupLines(fileDups);
 	list[Figure] boxes = createFileBoxes(fileBoxMap, fileLengths, fileDupCounts);
 	
-	map[str, int] vars = ("bla" : 3, "bla123": 20, "asdhkj": 30);
-	Figure configurationsMenu = createConfigMenu(vars);
+	list[str] vars = ["bla <3>", "bla123: hoi", "asdhkj"];
+	Figure configurationsMenu = createConfigMenu(vars, cloneExamples);
 	
 	/* Render all fileBoxes which contain duplicate boxes. */
 	render(hcat([configurationsMenu] + boxes, hgap(2)));
 }
 
-public Figure createConfigMenu(map[str, int] vars) {
-	
-	Figure header1 = text("  Configurations clone detector ", fontSize(16), top());
-	Figure headerSep = box(vsize(4), fillColor(gray(220)), lineColor(gray(220)), vresizable(false));
-	Figure lineSep = box(vsize(3), fillColor(gray(200)), lineColor("white"), vresizable(false));
-	
-	str entered = "";
-	Figure projectField = vcat([text("Project name: ", left()), textfield("", void(str s) {entered = s; println("<s>");})], vsize(80), vresizable(false), left());
-	
-	str curSelect = "1";
-	Figure cloneType = vcat([text("Clone type: ", left(), top()), choice(["1", "2"], void (str s) {curSelect = s; println("<s>"); },left(), size(100, 60))], resizable(false), left());
-	
-	int n = 1;
-	Figure startButton = button("Start clone detection", void() {n += 1;}, vresizable(false), vsize(50));
-	
-	list[Figure] texts = [header1, headerSep, projectField, cloneType, startButton, lineSep];
-	for (key <- vars) {
-		texts += text(" <key> : <vars[key]> ", left(), fontSize(12));
-	}
-	texts += lineSep;
-	
-	int sizeBox = 50 + 10 * (size(texts) - 1);
-	mainBox = box(vcat(texts), size(200, sizeBox), top(), vgap(2), resizable(false, false), lineColor(gray(200)));
-	return mainBox;
-}
+
 
 public list[int] calculateCodeDupLines(map[loc, list[loc]] fileDups) {
 	 list[int] fileDupCounts = [];
@@ -219,18 +188,4 @@ public list[Figure] createFileBoxes(map[loc, list[node]] fileBoxMap, map[loc, re
 		boxes += fileBox;
 	}
 	return boxes;
-}
-
-public FProperty getMouseDownAction(loc f) {
-	return onMouseUp(bool (int butnr, map[KeyModifier, bool] modifiers) {
-		openWindow(f);
-		return true;
-	});
-}
-
-public FProperty getMouseOverBox(str boxText, FProperty alignment) {
-	return (onMouseOver(box(
-			text(boxText, align(0,0)),
-		    alignment, vshrink(0.1), fillColor(rgb(251, 255, 147, 0.8))
-	)));
 }
