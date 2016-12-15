@@ -61,9 +61,7 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
 	
 	/* Get the clone classes and write those to file and return the classes. */
 	set[set[loc]] cloneClasses = getCloneClasses(mergedClonePairs, eclipseModel);
-	writeFile(writeLoc + "result", "<cloneClasses>;");
-	
-	println(cloneStats);
+	writeFile(writeLoc + "result-<eclipseModel.id.authority>", "<cloneClasses>;");
 	
 	return cloneClasses;
 }
