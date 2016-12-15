@@ -36,18 +36,17 @@ import Series2::trimCode;
 public loc writeLoc = |project://Software%20Evolution/src/Series2/|;
 
 /* Getters and setters for clone detection. */
-public int cloneSize = 6;
-
+private int cloneSize = 6;
 public int getCloneSize() { 
 	return cloneSize; 
 }
-
 public void setCloneSize(int newSize) { 
 	cloneSize = newSize; 
 }
 
 public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) {
 	set[Declaration] AST = createAstsFromEclipseProject(eclipseModel.id, false);
+	AST = toSet(toList(AST)[0..20]);
 	if (detectType2 == true)
 		AST = stripAST(AST);
 	
@@ -61,7 +60,9 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
 	
 	/* Get the clone classes and write those to file and return the classes. */
 	set[set[loc]] cloneClasses = getCloneClasses(mergedClonePairs, eclipseModel);
-	writeFile(writeLoc + "result-<eclipseModel.id.authority>", "<cloneClasses>;");
+	str typeDetection = (!detectType2) ? "type1" : "type2";
+	writeFile(writeLoc + "result-<eclipseModel.id.authority>-<cloneSize>-<typeDetection>",
+	          "<cloneClasses>;");
 	
 	return cloneClasses;
 }
@@ -71,33 +72,36 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
  * By sorting everything, the merging is optimized.
  */
 public lrel[loc, loc] getClonePairs(map[node, list[loc]] treeMap) {
-	rel[tuple[int, int], loc, loc] clonePairs = {};
+	rel[loc, loc] clonePairs = {};
+	
 	for (duplicateCode <- treeMap) {
 		if (size(treeMap[duplicateCode]) < 2)
 			continue;
 
 		for (loc locA <- treeMap[duplicateCode]) {
 			for (loc locB <- treeMap[duplicateCode], locA != locB) {
-				/* Create the keys to sort all the file offset on, 
-				 * so the pairs can be merged more easily. 
-				 */
-				 
+				if (locA.path == locB.path && !(locA.end.line < locB.begin.line || locB.end.line < locA.begin.line)) {
+					continue;
+				}
+
 				/* Make sure when covering multiple file pairs, 
 				 * the first index is always the same. Thus, swap if necessary. */
 				if (locA.path < locB.path)
 					<locB, locA> = <locA, locB>;
-				
-		        /* You want to sort the file offset from small to large,
-		         * but you want to sort the file lengths from large to small.
-		         * Workaround: use as second sortKey: offset minus the length. 
-				 */
-				clonePairs += <<locA.offset, locA.offset - locA.length>, locA, locB>;
+				clonePairs += <locA, locB>;
 			}
 		}
 	}
 	
-	/* Sort on the keys created above and create a final sorted list of file relations. */
-	return [<locA, locB> | <_, locA, locB> <- sort(clonePairs)];
+	bool isLess(<loc locA, loc A2>, <loc locB, loc B2>) {
+        /* You want to sort the file offset from small to large,
+         * but you want to sort the file lengths from large to small.
+         * Workaround: use as second sortKey: offset minus the length. 
+		 */
+		return ((<<locA.offset, locA.offset - locA.length>, locA, A2>) < (<<locB.offset, locB.offset - locB.length>, locB, B2>));
+	}
+	return sort(clonePairs, isLess);
+	
 }
 
 
@@ -123,10 +127,15 @@ public rel[loc, loc] getMergedPairs(lrel[loc, loc] clonePairs) {
 			 * If pairB falls into pairA, it is part of the same clone. So pairA, is the
 			 * parent of B.
 			 */
-			if (isParentTree(pairA[0], pairB[0]) && isParentTree(pairA[1], pairB[1])) {
-				mergedClonePairs += pairA;
-				containedPairs[pairB] = true;
-			}
+			//if (pairA[0].end.line - pairA[0].begin.line > pairB[0].end.line - pairB[0].begin.line) {
+				if (isParentTree(pairA[0], pairB[0]) && isParentTree(pairA[1], pairB[1])) {
+					mergedClonePairs += pairA;
+					containedPairs[pairB] = true;
+				}
+				//else {
+				//	mergedClonePairs += pairB;
+				//}
+			//}
 			else { /* Found likely a clone pair that is probably not part of a parent clone: thus add it. */
 				mergedClonePairs += pairB;
 			}

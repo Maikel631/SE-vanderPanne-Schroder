@@ -32,7 +32,7 @@ public loc pathToLoc(str path) {
 }
 
 public map[str, int] calcStats(set[set[loc]] cloneClasses, M3 eclipseModel) {
-	cloneStats = (
+	map[str, int] cloneStats = (
 		"numClones": 0, "numCloneClasses": 0,
 		"bigClone": 0, "bigCloneClass": 0
 	);

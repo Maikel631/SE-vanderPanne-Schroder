@@ -25,11 +25,15 @@ import lang::java::jdt::m3::Core;
 
 
 private map[int, tuple[loc, int, int]] cloneExamples = ();
+private map[loc, int] fileDupCounts = ();
 
 public map[int, tuple[loc, int, int]] getCloneExamples() {
 	return cloneExamples;
 }
 
+public map[loc, int] getFileDupCount() {
+	return fileDupCounts;
+}
 
 
 public Figure getFileBoxes(set[set[loc]] duplicateClasses) {
@@ -44,6 +48,8 @@ public Figure getFileBoxes(set[set[loc]] duplicateClasses) {
 	map[loc, list[Figure]] fileBoxMap = ();
 	map[loc, list[loc]] fileDups = ();
 	int classNum = 1;
+
+	M3 model = getCurProject();
 
 	for (dupClass <- duplicateClasses) {
 		randColor = color(colorNames()[arbInt(size(colorNames()))], 0.6);
@@ -61,11 +67,11 @@ public Figure getFileBoxes(set[set[loc]] duplicateClasses) {
 				vshrink(lengthOffset),
 				lineColor(randColor),
 				getMouseDownAction(dup),
-				getMouseOverBox(" Class: <classNum> - Clone found on lines <dup.begin.line> - <dup.end.line> Size: <dup.end.line - dup.begin.line> ", bottom())
+				getMouseOverBox(" Class: <classNum> - Clone found on lines <dup.begin.line> - <dup.end.line> SLOC size: <countLOC(dup, model)> ", bottom())
 			);
 
 			if (classNum notin cloneExamples)
-				cloneExamples[classNum] = <dup, 3, randColor>;
+				cloneExamples[classNum] = <dup, countLOC(dup, model), randColor>;
 
 			/* Add box to appropriate file 'bin'. */
 			loc dupKey = pathToLoc(dup.path);
@@ -80,7 +86,7 @@ public Figure getFileBoxes(set[set[loc]] duplicateClasses) {
 		}
 		classNum += 1;
 	}
-	list[int] fileDupCounts = calculateCodeDupLines(fileDups);
+	fileDupCounts = calculateCodeDupLines(fileDups);
 	list[Figure] boxes = createFileBoxes(fileBoxMap, fileLengths, fileDupCounts);
 	
 	/* Render all fileBoxes which contain duplicate boxes. */
@@ -88,15 +94,27 @@ public Figure getFileBoxes(set[set[loc]] duplicateClasses) {
 }
 
 
-
-public list[int] calculateCodeDupLines(map[loc, list[loc]] fileDups) {
-	 list[int] fileDupCounts = [];
+/* Merge the file offset intervals into larger offset, so the countLOC function
+ * can be executed more efficiently. 
+ */
+public map[loc, int] calculateCodeDupLines(map[loc, list[loc]] fileDups) {
+ 	 fileDupCounts = ();
+	 M3 project = getCurProject();
 	 for (f <- fileDups) {
-	 	rel[int, int] temp = {<dup.begin.line, dup.end.line> | dup <- fileDups[f]};
+	 	rel[int, int] temp = {<dup.offset, dup.offset + dup.length> | dup <- fileDups[f]};
 	 	/* Merge the file intervals and sum the difference between them to get the total
 	 	 * number of duplicate lines per file. 
 	 	 */
-	 	fileDupCounts += sum([endF - startF |<startF, endF> <- mergeIntervals(temp)]);
+	 	for (<offsetStart, offsetEnd> <- mergeIntervals(temp)) {
+			dupFile = fileDups[f][0];
+	 		
+	 		dupFile.offset = offsetStart;
+	 		dupFile.length = offsetEnd - offsetStart;
+	 		if (f in fileDupCounts)
+	 			fileDupCounts[f] += countLOC(dupFile, project);
+	 		else
+	 			fileDupCounts[f] = countLOC(dupFile, project);
+	 	}
 	 }
 	 return fileDupCounts;
 }
@@ -127,7 +145,7 @@ public lrel[int, int] mergeIntervals(rel[int,int] intervals) {
 	return mergedIntervals;
 }
 
-public list[Figure] createFileBoxes(map[loc, list[node]] fileBoxMap, map[loc, real] fileLengths, list[int] fileDupCounts) {
+public list[Figure] createFileBoxes(map[loc, list[node]] fileBoxMap, map[loc, real] fileLengths, map[loc, int] fileDupCounts) {
 	/* Normalize the file lenghts, determine the boxes' heights and offsets. */
 	real normalizer = toReal(max([fileLengths[f] | f <- fileLengths]));
 	map[loc, real] heightBoxes = (f : fileLengths[f] / normalizer | f <- fileLengths);
@@ -154,7 +172,7 @@ public list[Figure] createFileBoxes(map[loc, list[node]] fileBoxMap, map[loc, re
 		str mouseOverText = " File: <fileName> \n";
 		mouseOverText += " Length: <toInt(fileLengths[f])> lines \n";
 		mouseOverText += " Num clones found: <size(fileBoxMap[f])> \n";
-		mouseOverText += " Number of clone lines: <fileDupCounts[i]> ";
+		mouseOverText += " Number of clone lines (SLOC): <fileDupCounts[f]> ";
 		
 		infoBox = box( text(f.file, fontSize(8)),
 			fillColor("white"),

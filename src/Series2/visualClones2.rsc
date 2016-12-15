@@ -3,10 +3,12 @@ module Series2::visualClones2
 import Series2::visUtilities;
 import Series2::visFileBoxes;
 import Series2::Series2;
+import Series2::trimCode;
 
 import vis::Figure;
 import vis::Render;
 import String;
+import List;
 import util::Math;
 import IO;
 import Map;
@@ -14,15 +16,21 @@ import Map;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 
+
 private bool redrawConfig = false;
 private bool redrawBoxes = false;
 int count = 0;
 
 private map[loc, M3] eclipseProjectMap = ();
 private M3 curProject = emptyM3(|file://null|);
+private int numLines = 6;
 private bool type2 = false;
 
 private set[set[loc]] duplicateClasses = {};
+
+public M3 getCurProject() {
+	return curProject;
+}
 
 public bool projectIsSet() {
 	return (curProject.id != |file://null|);
@@ -34,7 +42,8 @@ private void redrawAll() {
 }
 
 private bool readCloneClasses() {
-	filePath = toLocation("project://Software%20Evolution/src/Series2/result-<curProject.id.authority>");
+	str typeDetection = (!type2) ? "type1" : "type2"; 
+	loc filePath = toLocation("project://Software%20Evolution/src/Series2/result-<curProject.id.authority>-<numLines>-<typeDetection>");
 	if (exists(filePath) && projectIsSet()) {
 		println("Got clone classes!");
 		duplicateClasses = readDuplicates(filePath);
@@ -70,11 +79,12 @@ public void startCloneDetection() {
 public void startVisualization() {
 	duplicateClasses = {};
 	curProject = emptyM3(|file://null|);
+
 	Figure configInput = configInputFields();
 	Figure stats = statsScreen();
 	Figure fileBoxes = fileBoxFigures();
-	
-	render(hcat([vscrollable(vcat([configInput, stats], top(), left()), hresizable(false), top()), fileBoxes], top()));
+
+	render(hcat([vscrollable(vcat([configInput, stats], top(), left(),  size(325, 800)), hresizable(false), top()), fileBoxes], top()));
 }
 
 public Figure configInputFields() {
@@ -88,12 +98,12 @@ public Figure configInputFields() {
 		 textfield("", void(str s) { getCurrentProject(s);})],
 		vsize(80), vresizable(false), left());
 	
-	int numLines = 6;
 	Figure numCodeLines = hcat(
 		[text("Num lines: ", left()),
 		 textfield("<numLines>",
 		 		   void(str s) {
 		 		   	 numLines = intInput(s) ? toInt(s) : numLines;
+		 		   	 setCloneSize(numLines); // Set the number of lines in the clone detector.
 		 		   }, left(), hsize(30), hresizable(false))
 		], vsize(80), resizable(false), left());
 	
@@ -137,13 +147,27 @@ public Figure statsScreen() {
 
 public Figure resultsFigure() {
 	list[Figure] resultFigures = [];
-	map[str, int] stats = calcStats(duplicateClasses, curProject);
-	resultFigures += text(" Number of clones: <stats["numClones"]> ", left(), vsize(12), vresizable(false));
-	resultFigures += text(" Number of clone classes: <stats["numCloneClasses"]> " ,left(), vsize(12), vresizable(false));
-	resultFigures += text(" Biggest clone (SLOC): <stats["bigClone"]> ", left(), left(), vsize(12), vresizable(false));
-	resultFigures += text(" Biggest clone class: <stats["bigCloneClass"]> ", left(), vsize(12), vresizable(false));
+	map[str, int] stats = ();
+	stats = calcStats(duplicateClasses, curProject);
+	map[loc, int] fileDupCount = getFileDupCount();
+	int linesOfCode = getVolume(curProject);
+	println(fileDupCount);
+	int linesOfCloneCode = sum([0] + [fileDupCount[f] | f <- fileDupCount]);
+	real clonePercentage = (linesOfCode == 0) ? 0.0 : ((linesOfCloneCode / toReal(linesOfCode)) * 100.0);
+	Figure makeStatStr(str textStr) {
+		return text(textStr, left(), vsize(12), vresizable(false));
+	}
+
+	resultFigures += makeStatStr(" Number of lines of code in project (SLOC): <linesOfCode> ");
+	resultFigures += makeStatStr(" Number of clone lines in project (SLOC): <linesOfCloneCode> ");
+	resultFigures += makeStatStr(" Clone percentage: <round(clonePercentage, 0.05)>% ");
+	resultFigures += makeStatStr(" Number of clones: <stats["numClones"]> ");
+	resultFigures += makeStatStr(" Number of clone classes: <stats["numCloneClasses"]> ");
+	resultFigures += makeStatStr(" Biggest clone (SLOC): <stats["bigClone"]> ");
+	resultFigures += makeStatStr(" Biggest clone class: <stats["bigCloneClass"]> ");
 	resultFigures += text(" Clone Legend  ", left(), fontSize(20));
-	return vcat(resultFigures + createCloneLegend(), top(), size(325, 200), vresizable(false));
+
+	return vcat(resultFigures + createCloneLegend(), top(), vresizable(false));
 }
 
 public Figure fileBoxFigures() { 
