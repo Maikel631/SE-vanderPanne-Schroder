@@ -2,18 +2,37 @@ module Series2::visUtilities
 
 import Series2::trimCode;
 
+import util::Eval;
+import util::Math;
 import vis::Figure;
 import vis::KeySym;
 import Set;
 import List;
+import String;
+import IO;
+import util::Editors;
 
-import lang::java::m3::AST;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
-import lang::java::jdt::m3::AST;
+
+/* Read in and evaluate the duplicate classes. */
+public set[set[loc]] readDuplicates(loc filePath) { 
+	contents = readFile(filePath);
+	contents = replaceAll(contents, " ", "%20");
+	visit (eval(contents)) {
+		case set[set[loc]] a: return a;
+	};
+}
+
+/* Convert file path to loc variable. */
+public loc pathToLoc(str path) {
+	/* Convert spaces in path to "%20". */
+	path = replaceAll(path, " ", "%20");
+	return toLocation("file://<path>");
+}
 
 public map[str, int] calcStats(set[set[loc]] cloneClasses, M3 eclipseModel) {
-	cloneStats = (
+	map[str, int] cloneStats = (
 		"numClones": 0, "numCloneClasses": 0,
 		"bigClone": 0, "bigCloneClass": 0
 	);
@@ -46,6 +65,10 @@ public void openWindow(loc f) {
 	catch: ld = [info(1, "Here")];
 	
 	edit(f, ld);
+}
+
+public bool intInput(str s){
+	return /^[0-9]+$/ := s;
 }
 
 public FProperty getMouseDownAction(loc f) {
