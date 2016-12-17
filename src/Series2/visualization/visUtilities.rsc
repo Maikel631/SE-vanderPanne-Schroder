@@ -1,22 +1,33 @@
-module Series2::visUtilities
+/* Participants: Gerard Schröder, Maikel van der Panne
+ * StudentIDs: 10550237, 10576711
+ * Study: Software Engineering
+ * Date: 17-12-2016
+ *
+ * FILE:  visUtilities.rsc
+ *        This file contains utility functions that are used in the other
+ *        files that contain visualization code.
+ *
+ * USAGE: import 'Series2::visualization::visUtilities' to use the functions.
+ */
+module Series2::visualization::visUtilities
 
-import Series2::trimCode;
-import Series2::visFileBoxes;
-import Series2::visualClones;
+import IO;
+import Set;
+import List;
+import String;
 
 import util::Eval;
 import util::Math;
 import vis::Figure;
 import vis::KeySym;
-import Set;
-import List;
-import String;
-import IO;
 import util::Editors;
-
 
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
+
+import Series2::duplication::trimCode;
+import Series2::visualization::visFileBoxes;
+import Series2::visualization::visualClones;
 
 /* Read in and evaluate the duplicate classes. */
 public set[set[loc]] readDuplicates(loc filePath) { 

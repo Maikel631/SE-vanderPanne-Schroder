@@ -1,22 +1,32 @@
-module Series2::visFileBoxes
+/* Participants: Gerard Schröder, Maikel van der Panne
+ * StudentIDs: 10550237, 10576711
+ * Study: Software Engineering
+ * Date: 17-12-2016
+ *
+ * FILE:  visFileBoxes.rsc
+ *        This file contains functions to create the boxes for files and
+ *        clones which are shown in the visualization.
+ *
+ * USAGE: import 'Series2::visualization::visFileBoxes' to use the functions.
+ */
+module Series2::visualization::visFileBoxes
 
-import Series2::Series2;
-import Series2::trimCode;
-import Series2::visUtilities;
-import Series2::visualClones;
+import IO;
+import Map;
+import Set;
+import List;
+import String;
+import util::Math;
 
 import vis::Figure;
 import vis::KeySym;
-
-import String;
-import List;
-import Map;
-import Set;
-import IO;
-import util::Math;
-
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
+
+import Series2::Series2;
+import Series2::duplication::trimCode;
+import Series2::visualization::visUtilities;
+import Series2::visualization::visualClones;
 
 
 private map[int, tuple[loc, int, int]] cloneExamples = ();
