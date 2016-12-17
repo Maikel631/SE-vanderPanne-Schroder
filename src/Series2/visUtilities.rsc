@@ -34,7 +34,7 @@ public loc pathToLoc(str path) {
 public map[str, int] calcStats(set[set[loc]] cloneClasses, M3 eclipseModel) {
 	map[str, int] cloneStats = (
 		"numClones": 0, "numCloneClasses": 0,
-		"bigClone": 0, "bigCloneClass": 0
+		"bigClone": 0, "bigCloneClassLines": 0, "biggestCloneClass": 0
 	);
 
 	/* Iterate over all clones to determine statistics. */
@@ -49,8 +49,10 @@ public map[str, int] calcStats(set[set[loc]] cloneClasses, M3 eclipseModel) {
 				cloneStats["bigClone"] = cloneSize;
 		}
 		cloneStats["numCloneClasses"] += 1;
-		if (cloneClassSize > cloneStats["bigCloneClass"])
-			cloneStats["bigCloneClass"] = cloneClassSize;
+		if (cloneClassSize > cloneStats["bigCloneClassLines"]) {
+			cloneStats["bigCloneClassLines"] = cloneClassSize;
+			cloneStats["biggestCloneClass"] = cloneStats["numCloneClasses"];
+		}
 	}
 	return cloneStats;
 }
@@ -81,6 +83,9 @@ public FProperty getMouseDownAction(loc f) {
 public FProperty getMouseOverBox(str boxText, FProperty alignment) {
 	return (onMouseOver(box(
 			text(boxText, align(0,0)),
-		    alignment, vshrink(0.1), fillColor(rgb(251, 255, 147, 0.8))
+		    alignment, 
+		    vshrink(0.1), 
+		    fillColor(rgb(251, 255, 147, 0.8)),
+		    lineColor(gray(140))
 	)));
 }
