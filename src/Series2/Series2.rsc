@@ -16,23 +16,20 @@
 module Series2::Series2
 
 import IO;
+import Map;
 import Set;
-import Type;
+import Node;
 import List;
 import Relation;
-import Node;
-import Map;
-import String;
-import Traversal;
-import ParseTree;
 
 import lang::java::m3::AST;
 import lang::java::m3::Core;
-import lang::java::jdt::m3::Core;
 import lang::java::jdt::m3::AST;
+import lang::java::jdt::m3::Core;
 
 import Series2::trimCode;
 
+/* Globals for writing to a static location. */
 public loc writeLoc = |project://Software%20Evolution/src/Series2/|;
 
 /* Getters and setters for clone detection. */
@@ -52,7 +49,7 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
 	
 	/* Top-bottom visit of all files. */
 	map[node, list[loc]] treeMap = createTreeMap(AST, eclipseModel);
-
+	
 	/* From the treeMap, create a list of relations with the clonePairs. 
 	 * Afterwards, try to merge the clone pairs as all are of the */
 	lrel[loc, loc] clonePairs = getClonePairs(treeMap);
@@ -206,7 +203,6 @@ public set[set[loc]] getCloneClasses(rel[loc, loc] clonePairs, M3 eclipseModel) 
 
 
 public set[Declaration] stripAST(set[Declaration] AST) {
-	
 	/* Filter code fragments for type 2 duplicates. */
 	return visit(AST) {
 		case Type x => string()
@@ -271,12 +267,6 @@ public map[node, list[loc]] processNodeList(map[node, list[loc]] treeMap,
 	return treeMap;
 }
 
-public loc extractSrc (node n) {
-	if (loc location := getAnnotations(n)["src"])
-		return location;
-	return |file://null|;
-}
-
 public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNode) {
 	annotations = getAnnotations(curNode);
 	
@@ -298,45 +288,13 @@ public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNo
 	return treeMap;
 }
 
-//public bool isPartOf(loc srcA, loc srcB) {
-//	return (isParentTree(srcA, srcB) || isOverlapping(srcA, srcB));
-//}
-
 /* Is 'b' a subtree of 'a', thus its parent? */
-public bool isParentTree(loc srcA, loc srcB) {	
-	if (srcA.path == srcB.path && (srcA.offset <= srcB.offset && 
-	                               srcB.offset + srcB.length <= srcA.offset + srcA.length))
+public bool isParentTree(loc srcA, loc srcB) {
+	endA = srcA.offset + srcA.length;
+	endB = srcB.offset + srcB.length;
+	if (srcA.path == srcB.path && (srcA.offset <= srcB.offset && endB <= endA))
 		return true;
 	return false;
-}
-
-/* Does 'a' overlap  'b'? */
-//public bool isOverlapping(loc srcA, loc srcB) {
-//	endA = srcA.offset + srcA.length;
-//	endB = srcB.offset + srcB.length;
-//	
-//	if (srcA.path == srcB.path && (srcA.offset < endB || srcB.offset < endA))
-//		return true;
-//	return false;
-//}
-
-/* Not necessary! */
-public node cleanTree(node curNode) {
-	curNode = delAnnotations(curNode);
-	curNode = visit (curNode) {
-		case node n => delAnnotations(n)
-	}
-	return curNode;
-}
-
-public int treeSize(node curNode) {
-	subTreeSize = 0;
-	visit (curNode) {
-		case Declaration n: subTreeSize += 1;
-		case Expression n: subTreeSize += 1;
-		case Statement n: subTreeSize += 1;
-	}
-	return subTreeSize;
 }
 
 /* TODO: When using max size = 2, then it is considerably faster.
@@ -357,6 +315,12 @@ public list[list[node]] sliceLists(list[node] inputList) {
 	return sliceList;
 }
 
+public loc extractSrc (node n) {
+	if (loc location := getAnnotations(n)["src"])
+		return location;
+	return |file://null|;
+}
+
 public loc mergeLocations(loc locFileA, loc locFileB) {	
 	if (locFileA.offset > locFileB.offset)
 		<locFileA, locFileB> = <locFileB, locFileA>;
@@ -367,4 +331,13 @@ public loc mergeLocations(loc locFileA, loc locFileB) {
 	locFileA.end.column = locFileB.end.column;
 	
 	return locFileA;
+}
+
+/* Not necessary, but still useful! */
+public node cleanTree(node curNode) {
+	curNode = delAnnotations(curNode);
+	curNode = visit (curNode) {
+		case node n => delAnnotations(n)
+	}
+	return curNode;
 }
