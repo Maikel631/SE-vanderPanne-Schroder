@@ -1,22 +1,34 @@
-module Series2::visualClones
+/* Participants: Gerard Schröder, Maikel van der Panne
+ * StudentIDs: 10550237, 10576711
+ * Study: Software Engineering
+ * Date: 17-12-2016
+ *
+ * FILE:  visualClones.rsc
+ *        This file contains the main functionality to start and run the
+ *        visualization of the code. It furthermore calls functions from
+ *        other source files to calculate all the code clones.
+ *
+ * USAGE: import 'Series2::visualization::visualClones' to use the functions.
+ */
+module Series2::visualization::visualClones
 
-import Series2::visUtilities;
-import Series2::visFileBoxes;
-import Series2::visStatistics;
-import Series2::Series2;
-import Series2::trimCode;
+import IO;
+import Map;
+import List;
+import String;
+import util::Math;
 
 import vis::Figure;
 import vis::Render;
-import String;
-import List;
-import util::Math;
-import IO;
-import Map;
 
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
 
+import Series2::Series2;
+import Series2::duplication::trimCode;
+import Series2::visualization::visUtilities;
+import Series2::visualization::visFileBoxes;
+import Series2::visualization::visStatistics;
 
 public bool redrawConfig = false;
 public bool redrawBoxes = false;
@@ -51,7 +63,7 @@ public void redrawAll() {
 	redrawBoxes = true;
 }
 
-/* Try to retreive all the clone classes calculated for this particular configuration. */
+/* Try to retrieve all the clone classes calculated for this particular configuration. */
 public bool readCloneClasses() {
 	str typeDetection = (!type2) ? "type1" : "type2"; 
 	loc filePath = toLocation("project://Software%20Evolution/src/Series2/result-<curProject.id.authority>-<numLines>-<typeDetection>");

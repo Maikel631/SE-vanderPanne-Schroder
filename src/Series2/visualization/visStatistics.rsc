@@ -1,20 +1,31 @@
-module Series2::visStatistics
+/* Participants: Gerard Schröder, Maikel van der Panne
+ * StudentIDs: 10550237, 10576711
+ * Study: Software Engineering
+ * Date: 17-12-2016
+ *
+ * FILE:  visStatistics.rsc
+ *        This file contains functions to calculate statistics about the
+ *        that are shown in the visualization.
+ *
+ * USAGE: import 'Series2::visualization::visStatistics' to use the functions.
+ */
+module Series2::visualization::visStatistics
 
-import Series2::visualClones;
-import Series2::visFileBoxes;
-import Series2::visUtilities;
-import Series2::trimCode;
-
-import vis::KeySym;
-import vis::Figure;
-import List;
-import Set;
-import Map;
 import IO;
+import Map;
+import Set;
+import List;
 import util::Math;
 
+import vis::Figure;
+import vis::KeySym;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
+
+import Series2::visualization::visualClones;
+import Series2::visualization::visFileBoxes;
+import Series2::visualization::visUtilities;
+import Series2::duplication::trimCode;
 
 public Figure statsScreen() {
 	Figure resultHeader = text("  Results  ", vresizable(false), vsize(20), fontSize(20), left(), top());

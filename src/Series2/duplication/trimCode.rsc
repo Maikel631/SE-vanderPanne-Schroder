@@ -3,7 +3,7 @@
  * Study: Software Engineering
  * Date: 23-11-2016
  *
- * FILE:  volume.rsc
+ * FILE:  trimCode.rsc
  *        This file contains functions to strip a source file's contents
  *        from whitespace lines and comments, after which the linecount
  *        can be determined. 
@@ -13,13 +13,10 @@
  *        The volumeIndex map is used to 'cache' some of the earlier line count calculation
  *        of files and methods. The cache can be cleared with the clearIndex() function. 
  *
- *       The line count is finally translated into a 1-5 star rating using a
- *       scoring table.
- *
- * USAGE: import 'codeProperties::volume' to use the functions.
+ * USAGE: import 'Series2::duplication::trimCode' to use the functions.
  */
 
-module Series2::trimCode
+module Series2::duplication::trimCode
 
 import IO;
 import List;
