@@ -1,191 +1,179 @@
 module Series2::visualClones
 
+import Series2::visUtilities;
+import Series2::visFileBoxes;
+import Series2::visStatistics;
 import Series2::Series2;
 import Series2::trimCode;
-import Series2::visUtilities;
-import Series2::configMenu;
+
 import vis::Figure;
 import vis::Render;
-import vis::KeySym;
-
-import util::Eval;
-import util::Math;
-import util::Editors;
-import Traversal;
 import String;
-import Node;
-import Type;
 import List;
-import Map;
-import Set;
-import Relation;
+import util::Math;
 import IO;
+import Map;
 
-import lang::java::m3::AST;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::Core;
-import lang::java::jdt::m3::AST;
 
 
-/* Read in and evaluate the duplicate classes. */
-public set[set[loc]] readDuplicates() {
-	contents = readFile(|project://Software%20Evolution/src/Series2/result|);
-	contents = replaceAll(contents, " ", "%20");
-	visit (eval(contents)) {
-		case set[set[loc]] a: return a;
-	};
+public bool redrawConfig = false;
+public bool redrawBoxes = false;
+int count = 0;
+
+private map[loc, M3] eclipseProjectMap = ();
+private M3 curProject = emptyM3(|file://null|);
+private int numLines = 6;
+private bool type2 = false;
+
+/* === Getter and setter related variables. === */
+private set[set[loc]] duplicateClasses = {};
+
+public set[set[loc]] getDuplicateClasses() {
+	return duplicateClasses;
 }
 
-/* Convert file path to loc variable. */
-public loc pathToLoc(str path) {
-	/* Convert spaces in path to "%20". */
-	path = replaceAll(path, " ", "%20");
-	return toLocation("file://<path>");
+/* Get the current M3 project. */
+public M3 getCurProject() {
+	return curProject;
 }
 
-public void visualizeClones() {
-	/* Retrieve clone classes, files affected by clones and their length. */
-	set[set[loc]] duplicateClasses = readDuplicates();
-	set[loc] filesWithClones = {pathToLoc(fileLoc.path) | fileLoc <- union(duplicateClasses)};
-	map[loc, real] fileLengths = (
-		fileLoc : toReal(size(readFileLines(fileLoc))) | fileLoc <- filesWithClones
+/* === Helper functions === */
+/* Check if the project is set to something valid. */
+public bool projectIsSet() {
+	return (curProject.id != |file://null|);
+}
+
+/* Redraw the configuration statistics and the fileBoxes. */
+public void redrawAll() {
+	redrawConfig = true;
+	redrawBoxes = true;
+}
+
+/* Try to retreive all the clone classes calculated for this particular configuration. */
+public bool readCloneClasses() {
+	str typeDetection = (!type2) ? "type1" : "type2"; 
+	loc filePath = toLocation("project://Software%20Evolution/src/Series2/result-<curProject.id.authority>-<numLines>-<typeDetection>");
+	if (exists(filePath) && projectIsSet()) {
+		println("Got clone classes!");
+		duplicateClasses = readDuplicates(filePath);
+		return true;
+	}
+	println("Clone classes do not exist - or project is not set yet.");
+	return false;
+}
+
+/* Try to create a M3 project which will fail if the path does not exists.
+ * However, the exists function will crash on project paths: thus use try catch.
+ */
+public M3 getCurrentProject(str projectName) {
+	projectName = trim(projectName);
+	loc projectLoc = toLocation("project://<projectName>");
+	try {
+		println("Trying to make M3 model of project: <projectName>");
+		if (projectLoc notin eclipseProjectMap)
+			eclipseProjectMap[projectLoc] = createM3FromEclipseProject(projectLoc);
+		curProject = eclipseProjectMap[projectLoc];
+		if (readCloneClasses())
+			redrawAll();
+		println("Finished project creation!");
+	}
+	catch :
+		println("Invalid location given!");
+
+	return curProject;
+}
+
+public void startCloneDetection() {
+	
+}
+
+/* === Main function to start the visualization. === */
+public void startVisualization() {
+	duplicateClasses = {};
+	curProject = emptyM3(|file://null|);
+
+	Figure configInput = configInputFields();
+	Figure stats = statsScreen();
+	Figure fileBoxes = fileBoxFigures();
+
+	Figure configMenu = vcat([configInput, stats, space()], top(), left(),  size(325, 800));
+	render(hcat([vscrollable(configMenu, hresizable(false), top()), fileBoxes], top()));
+}
+
+/* Create the menu to the right containing the input fields, which
+ * configure the clone detector.
+ */
+public Figure configInputFields() {
+	Figure header1 = text("  Configurations clone detector ", fontSize(16), top());
+	Figure headerSep = box(vsize(4), fillColor(gray(220)), lineColor(gray(220)), vresizable(false));
+	Figure lineSep = box(vsize(3), fillColor(gray(200)), lineColor("white"), vresizable(false));
+	
+	/* Create the project name input field and create a M3 model on input confirmation. */
+	Figure projectField = vcat(
+		[text("Project name: ", left()), 
+		 textfield("", 
+		 	void(str s) {
+		 		 getCurrentProject(s);
+		 	}, hsize(325), hresizable(false))
+		 ],
+		vsize(80), vresizable(false), left());
+	
+	/* Set the number of lines on which the clone classes are based at minimum. */
+	Figure numCodeLines = hcat(
+		[text("Num lines: ", left()),
+		 textfield("<numLines>",
+		 		   void(str s) {
+		 		   	 numLines = intInput(s) ? toInt(s) : numLines;
+		 		   	 setCloneSize(numLines); // Set the number of lines in the clone detector.
+		 		   }, left(), hsize(30), hresizable(false))
+		], vsize(80), resizable(false), left());
+	
+	/* Create a dropdown list to choose the clone detection type. */
+	Figure cloneType = vcat(
+		[text("Clone type: ", left(), top()),
+         choice(["1", "2"],
+         void (str s) {
+         	type2 = s == "1" ? false : true;
+         	println("<s> - <type2>");
+         }, left(), size(100, 60))
+        ], resizable(false), left());
+	
+	/* Start the clone detection algorithm and reload all the views. */
+	Figure startButton = button(
+		"Start clone detection",
+	    void() { if (projectIsSet()) findDuplicatesAST(curProject, detectType2=type2); redrawAll(); },
+	    resizable(false), size(325, 50), left()
 	);
 	
-	/* Create boxes for all duplicates and map them per file. */
-	map[loc, list[Figure]] fileBoxMap = ();
-	map[loc, list[loc]] fileDups = ();
-	map[int, tuple[loc, int, int]] cloneExamples = ();
-	int classNum = 1;
+	/* Now combine everything. */
+	list[Figure] configBoxContents = [];
+	configBoxContents += [header1, headerSep, projectField, cloneType];
+	configBoxContents += [numCodeLines, startButton, lineSep];
+	mainBox = box(vcat(configBoxContents), size(325, 400), top(), vgap(2), vresizable(false), lineColor(gray(200)));
+	return mainBox;
+}
 
-	for (dupClass <- duplicateClasses) {
-		randColor = color(colorNames()[arbInt(size(colorNames()))], 0.6);
-		
-		/* All boxes for each dupClass have the same color. */
-		for (dup <- dupClass) {
-			/* Determine the size and offset for displaying the box. */		
-			startOffset = dup.begin.line / fileLengths[pathToLoc(dup.path)];
-			lengthOffset = (dup.end.line - dup.begin.line) / fileLengths[pathToLoc(dup.path)];
-
-			/* Create box for this duplicate, add it to the appropriate bin. */
-			fileBox = box(
-				fillColor(randColor),
-				align(0, startOffset),
-				vshrink(lengthOffset),
-				lineColor(randColor),
-				getMouseDownAction(dup),
-				getMouseOverBox(" Class: <classNum> - Clone found on lines <dup.begin.line> - <dup.end.line> Size: <dup.end.line - dup.begin.line> ", bottom())
-			);
-
-			/* Add box to appropriate file 'bin'. */
-			loc dupKey = pathToLoc(dup.path);
-			if (dupKey in fileBoxMap) {
-				fileBoxMap[dupKey] += fileBox;
-				fileDups[dupKey] += dup;
-			}
+/* Create a compute figure for the file boxes. */
+public Figure fileBoxFigures() { 
+	Figure fileBoxes = computeFigure(
+		bool() {
+			if (!redrawBoxes)
+				return false; 
+			redrawBoxes = false;
+			return true;
+		},
+		Figure() {
+			if (readCloneClasses()) {
+				Figure boxes = getFileBoxes(duplicateClasses);
+				redrawConfig = true;
+				return boxes;
+			} 
 			else {
-				fileBoxMap[dupKey] = [fileBox];
-				fileDups[dupKey] = [dup];
-				cloneExamples[classNum] = <dup, 3, randColor>;
+				return space();
 			}
 		}
-		classNum += 1;
-	}
-	
-	list[int] fileDupCounts = calculateCodeDupLines(fileDups);
-	list[Figure] boxes = createFileBoxes(fileBoxMap, fileLengths, fileDupCounts);
-	
-	list[str] vars = ["bla <3>", "bla123: hoi", "asdhkj"];
-	Figure configurationsMenu = createConfigMenu(vars, cloneExamples);
-	
-	/* Render all fileBoxes which contain duplicate boxes. */
-	render(hcat([configurationsMenu] + boxes, hgap(2)));
-}
-
-
-
-public list[int] calculateCodeDupLines(map[loc, list[loc]] fileDups) {
-	 list[int] fileDupCounts = [];
-	 for (f <- fileDups) {
-	 	rel[int, int] temp = {<dup.begin.line, dup.end.line> | dup <- fileDups[f]};
-	 	/* Merge the file intervals and sum the difference between them to get the total
-	 	 * number of duplicate lines per file. 
-	 	 */
-	 	println(mergeIntervals(temp));
-	 	fileDupCounts += sum([endF - startF |<startF, endF> <- mergeIntervals(temp)]);
-	 }
-	 return fileDupCounts;
-}
-
-/* Merge a list of integer intervals to one single interval list
- * Based on codereview.stackexchange.com/questions/69242 
- */
-public lrel[int, int] mergeIntervals(rel[int,int] intervals) {
-	lrel[int, int] mergedIntervals = [];
-	/* Sort all the intervals, so the first index will always be the smallest. */
-	lrel[int, int] sortedIntervals = sort(intervals);
-	
-	mergedIntervals += sortedIntervals[0];
-	for (higher <- sortedIntervals[1..]) {
-		tuple[int, int] lower = mergedIntervals[-1];
-		
-		if (higher[0] <= lower[1]) {
-			int upp = max(lower[1], higher[1]);
-			/* Replace last element from list to merged one.  */
-			mergedIntervals = delete(mergedIntervals, size(mergedIntervals) - 1);
-			mergedIntervals += <lower[0], upp>;
-		}
-		else {
-			if (higher notin mergedIntervals)
-				mergedIntervals += higher;
-		}
-	}
-	return mergedIntervals;
-}
-
-public list[Figure] createFileBoxes(map[loc, list[node]] fileBoxMap, map[loc, real] fileLengths, list[int] fileDupCounts) {
-	/* Normalize the file lenghts, determine the boxes' heights and offsets. */
-	real normalizer = toReal(max([fileLengths[f] | f <- fileLengths]));
-	map[loc, real] heightBoxes = (f : fileLengths[f] / normalizer | f <- fileLengths);
-	real offsetWidth = 1.0 / toReal(size(fileLengths) - 1);
-	real widthBoxes = 1.0 / toReal(size(fileLengths)) - 0.005;
-
-	int i = 0;
-	boxes = [];
-	real infoBoxSize = 0.1;
-	for (f <- fileBoxMap) {
-		nestedBoxes = reverse(fileBoxMap[f]);
-		/* Create a fileBox which encompasses the duplicates boxes. */
-		fileBox = box(
-			overlay(nestedBoxes),
-			size(100, round(fileLengths[f]) * 1.2),
-			//vresizable(false),
-			fillColor(gray(230)),
-			align(i * offsetWidth, infoBoxSize),
-			shrink(0.99, heightBoxes[f] - infoBoxSize),
-			getMouseDownAction(f),
-			lineColor(gray(200))
-		);
-		
-		str fileName = intercalate("/", split("/", f.path)[-3..]);;
-		str mouseOverText = " File: <fileName> \n";
-		mouseOverText += " Length: <toInt(fileLengths[f])> lines \n";
-		mouseOverText += " Num clones found: <size(fileBoxMap[f])> \n";
-		mouseOverText += " Number of clone lines: <fileDupCounts[i]> ";
-		
-		infoBox = box( text("File information", fontSize(8)),
-			fillColor("white"),
-			size(100, 20),
-			lineColor(rgb(202, 220, 249)),
-			align(i * offsetWidth, 0),
-			shrink(0.99, infoBoxSize),
-		    vgap(2),
-		    getMouseDownAction(f),
-		    getMouseOverBox(mouseOverText, center())
-		);
-		
-		fileBox = vcat([infoBox, fileBox]);
-		i += 1;
-		boxes += fileBox;
-	}
-	return boxes;
+	);
+	return fileBoxes;
 }
