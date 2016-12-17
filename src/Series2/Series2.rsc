@@ -43,7 +43,6 @@ public void setCloneSize(int newSize) {
 
 public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) {
 	set[Declaration] AST = createAstsFromEclipseProject(eclipseModel.id, false);
-	AST = toSet(toList(AST)[0..20]);
 	if (detectType2 == true)
 		AST = stripAST(AST);
 	
@@ -62,6 +61,82 @@ public set[set[loc]] findDuplicatesAST(M3 eclipseModel, bool detectType2=false) 
 	          "<cloneClasses>;");
 	
 	return cloneClasses;
+}
+
+/* Test for different clone merge method.. */
+public map[str, list[tuple[loc, loc, int]]] getClonePairs2(map[node, list[loc]] treeMap) {
+	map[str, list[tuple[loc, loc, int]]] cloneFileMap = ();
+	int cloneClass = 0;
+
+	/* Loop over all clone classes. */
+	for (duplicateCode <- treeMap) {
+		if (size(treeMap[duplicateCode]) < 2)
+			continue;
+		
+		for (<locA, locB> <- toRel(treeMap[duplicateCode])+) {
+			/* Add the clone to the correct bin. */
+			if (locA.path in cloneFileMap)
+				cloneFileMap[locA.path] += <locA, locB, cloneClass>;
+			else
+				cloneFileMap[locA.path] = [<locA, locB, cloneClass>];
+		}
+		cloneClass += 1;
+	}
+	
+	return cloneFileMap;
+}
+
+public void mergeClonePairs(map[str, list[tuple[loc, loc, int]]] cloneFileMap) {
+	map[str, list[tuple[loc, loc, int]]] filteredMap = ();
+	map[int, set[loc]] cloneClasses = ();
+	
+	/* Loop over all files. */
+	for (srcPath <- cloneFileMap) {	
+		/* Loop over the clone pairs in the file. */
+		for (<locA, locB, cloneClassX> <- cloneFileMap[srcPath]) {
+			if (srcPath notin filteredMap)
+				filteredMap[srcPath] = [<locA, locB, cloneClassX>];
+			else {
+				/* Get a copy of currently accepted clone pairs. */
+				filteredPairs = filteredMap[srcPath];
+				removeIndices = [];
+				
+				/* Remove pairs that are a subset of the current pair. */
+				addPair = true;
+				for (<locC, locD, cloneClassY> <- filteredPairs) {
+					if (isParentTree(locC, locA))
+						addPair = false;
+					if (isParentTree(locA, locC)) {
+						/* Remove locC from filteredPairs. */
+						removeIndices += indexOf(
+							filteredPairs, <locC, locD, cloneClassY>
+						);
+					}
+				}
+				
+				/* Remove the subset clone pairs and add the current pair. */
+				for (index <- reverse(sort(removeIndices)))
+					filteredPairs = delete(filteredPairs, index);
+				if (addPair)
+					filteredPairs += <locA, locB, cloneClassX>;
+				filteredMap[srcPath] = filteredPairs;
+			}
+		}
+	}
+	
+	/* Recreate clone classes. */
+	for (filePath <- filteredMap) {
+		for (<locA, locB, cloneClass> <- filteredMap[filePath]) {
+			if (cloneClass notin cloneClasses)
+				cloneClasses[cloneClass] = {locA, locB};
+			else
+				cloneClasses[cloneClass] += {locA, locB};
+		}
+	}
+	
+	/* Get rid of clone class numbers. */
+	set[set[loc]] finalClasses = {cloneClasses[class] | class <- cloneClasses};
+	iprintln(finalClasses);
 }
 
 /* Create from the tree map a list of small clone pairs that can be merged in a later step
@@ -292,7 +367,10 @@ public map[node, list[loc]] processNode(map[node, list[loc]] treeMap, node curNo
 public bool isParentTree(loc srcA, loc srcB) {
 	endA = srcA.offset + srcA.length;
 	endB = srcB.offset + srcB.length;
-	if (srcA.path == srcB.path && (srcA.offset <= srcB.offset && endB <= endA))
+	if (srcA.path == srcB.path && (
+		(srcA.offset < srcB.offset && endB <= endA) ||
+		(srcA.offset <= srcB.offset && endB < endA)
+	   ))
 		return true;
 	return false;
 }
