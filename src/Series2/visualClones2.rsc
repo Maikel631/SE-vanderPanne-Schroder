@@ -84,7 +84,7 @@ public void startVisualization() {
 	Figure stats = statsScreen();
 	Figure fileBoxes = fileBoxFigures();
 
-	render(hcat([vscrollable(vcat([configInput, stats], top(), left(),  size(325, 800)), hresizable(false), top()), fileBoxes], top()));
+	render(hcat([vscrollable(vcat([configInput, stats, space()], top(), left(),  size(325, 800)), hresizable(false), top()), fileBoxes], top()));
 }
 
 public Figure configInputFields() {
@@ -95,7 +95,11 @@ public Figure configInputFields() {
 	
 	Figure projectField = vcat(
 		[text("Project name: ", left()), 
-		 textfield("", void(str s) { getCurrentProject(s);})],
+		 textfield("", 
+		 	void(str s) {
+		 		 getCurrentProject(s);
+		 	}, hsize(325), hresizable(false))
+		 ],
 		vsize(80), vresizable(false), left());
 	
 	Figure numCodeLines = hcat(
@@ -119,20 +123,25 @@ public Figure configInputFields() {
 	Figure startButton = button(
 		"Start clone detection",
 	    void() { if (projectIsSet()) startCloneDetection(); redrawAll(); },
-	    vresizable(false), vsize(50)
+	    resizable(false), size(325, 50), left()
 	);
 	
 	list[Figure] configBoxContents = [];
 	configBoxContents += [header1, headerSep, projectField, cloneType];
 	configBoxContents += [numCodeLines, startButton, lineSep];
-	mainBox = box(vcat(configBoxContents), size(325, 400), top(), vgap(2), resizable(false), lineColor(gray(200)));
+	mainBox = box(vcat(configBoxContents), size(325, 400), top(), vgap(2), vresizable(false), lineColor(gray(200)));
 	return mainBox;
 }
 
 public Figure statsScreen() {
-	Figure resultHeader = text("  Results  ", fontSize(20), left());
-	Figure resultStats = computeFigure(bool() {
-		bool t = redrawConfig; redrawConfig = false; count += 1; println(count); return t;},
+	Figure resultHeader = text("  Results  ", vresizable(false), vsize(20), fontSize(20), left(), top());
+	Figure resultStats = computeFigure(
+		bool() {
+			if (!redrawConfig)
+				return false; 
+			redrawConfig = false;
+			return true;
+		},
 		Figure() {
 			if (readCloneClasses())
 				return resultsFigure();
@@ -142,18 +151,19 @@ public Figure statsScreen() {
 	);
 
 	
-	return box(vcat([resultHeader, resultStats], left()), hsize(325), hresizable(false), left(),  lineColor(gray(200)));
+	return box(vcat([resultHeader, resultStats], resizable(false), left(), top()), hsize(325), resizable(false), top(), left(), lineColor(gray(200)));
 }
 
 public Figure resultsFigure() {
-	list[Figure] resultFigures = [];
-	map[str, int] stats = ();
-	stats = calcStats(duplicateClasses, curProject);
-	map[loc, int] fileDupCount = getFileDupCount();
+	
 	int linesOfCode = getVolume(curProject);
-	println(fileDupCount);
+	map[loc, int] fileDupCount = getFileDupCount();
 	int linesOfCloneCode = sum([0] + [fileDupCount[f] | f <- fileDupCount]);
+	
 	real clonePercentage = (linesOfCode == 0) ? 0.0 : ((linesOfCloneCode / toReal(linesOfCode)) * 100.0);
+	
+	map[str, int] stats = calcStats(duplicateClasses, curProject);
+	list[Figure] resultFigures = [];
 	Figure makeStatStr(str textStr) {
 		return text(textStr, left(), vsize(12), vresizable(false));
 	}
@@ -164,7 +174,8 @@ public Figure resultsFigure() {
 	resultFigures += makeStatStr(" Number of clones: <stats["numClones"]> ");
 	resultFigures += makeStatStr(" Number of clone classes: <stats["numCloneClasses"]> ");
 	resultFigures += makeStatStr(" Biggest clone (SLOC): <stats["bigClone"]> ");
-	resultFigures += makeStatStr(" Biggest clone class: <stats["bigCloneClass"]> ");
+	resultFigures += makeStatStr(" Biggest clone class lines: <stats["bigCloneClassLines"]> ");
+	resultFigures += makeStatStr(" Biggest clone class: <stats["biggestCloneClass"]> ");
 	resultFigures += text(" Clone Legend  ", left(), fontSize(20));
 
 	return vcat(resultFigures + createCloneLegend(), top(), vresizable(false));
@@ -173,7 +184,10 @@ public Figure resultsFigure() {
 public Figure fileBoxFigures() { 
 	Figure fileBoxes = computeFigure(
 		bool() {
-			bool t = redrawBoxes; redrawBoxes = false; return t;
+			if (!redrawBoxes)
+				return false; 
+			redrawBoxes = false;
+			return true;
 		},
 		Figure() {
 			if (readCloneClasses()) {
@@ -198,10 +212,11 @@ public Figure createCloneLegend() {
 	map[int, list[Figure]] legendColumns = (); 
 	
 	Figure createLegendBlock(int classNum, tuple[loc, int, int] block) {
-		<cloneLoc, classLineNum, classColor> = block;
+		<cloneLoc, lineNum, classColor> = block;
+		str mouseOverText = "SLOC <lineNum> - Click for example on box.";
 		return hcat([text("<classNum>  - "),
 		             box(fillColor(classColor), lineColor(classColor), size(10, 10),
-		             getMouseDownAction(cloneLoc), resizable(false), right())
+		             getMouseDownAction(cloneLoc), resizable(false), right(), getMouseOverBox(mouseOverText, right()))
 		            ],resizable(false), size(50, 12), vresizable(false), left());
 	}
 
