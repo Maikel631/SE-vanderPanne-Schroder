@@ -150,6 +150,7 @@ public Figure getFileBoxes(set[set[loc]] duplicateClasses) {
 public map[loc, int] calculateCodeDupLines(map[loc, list[loc]] fileDups) {
  	 fileDupCounts = ();
 	 M3 project = getCurProject();
+	 
 	 for (f <- fileDups) {
 	 	rel[int, int] temp = {<dup.offset, dup.offset + dup.length> | dup <- fileDups[f]};
 	 	/* Merge the file intervals and sum the difference between them to get the total
@@ -206,7 +207,9 @@ public list[Figure] createFileBoxes(map[loc, list[node]] fileBoxMap, map[loc, re
 	int i = 0;
 	boxes = [];
 	real infoBoxSize = 0.1;
-	for (f <- fileBoxMap) {
+	
+	list[loc] sortedFiles = sort(domain(fileBoxMap));
+	for (f <- sortedFiles) {
 		nestedBoxes = reverse(fileBoxMap[f]);
 		/* Create a fileBox which encompasses the duplicates boxes. */
 		fileBox = box(
